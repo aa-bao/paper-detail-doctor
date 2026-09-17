@@ -1,0 +1,174 @@
+# ============================================================
+# paper-detail-doctor 子 skill 索引（路由的唯一真源）
+#
+# 包根 SKILL.md 的路由表由本文件驱动。新增/改名/下线子 skill 时，
+# 只改这里 + 建/删对应目录，不要去改 SKILL.md 里的表。
+#
+# 路由时怎么用：
+#   1) 从用户 prompt 抽出「对象 + 动作 + 产物」；
+#   2) 与每个 skill 的 triggers / covers 匹配；用 not_for 排除误命中；
+#   3) 只有一个高分 → 直接执行；多个 → 按 depends_on 排序或让用户选；
+#      全都不匹配 → 明确说不覆盖，并给最接近的候选。
+# ============================================================
+
+version: "0.1.0"
+package: paper-detail-doctor
+
+# 路由通识规则（所有 skill 共用）
+routing_rules:
+  - 先声明再执行：路由结果必须明文写出「→ 路由到 <skill>（<理由>）」，让用户能当场纠正。
+  - 只读优先：任何"检查/看看/有没有问题"类请求，只跑 audit 段，绝不写盘。
+  - 写盘要过 plan：涉及修改时，先出 plan.yaml 让用户勾选，再 apply。
+  - 命中多个时按 depends_on 排序：template-extract 永远最先（它提供标准）。
+  - 不硬凑：prompt 与本包能力无关时直说「本包不覆盖」，不要挑一个勉强相关的来执行。
+
+skills:
+
+  # ---------------------------------------------------------- 标准来源
+  - id: template-extract
+    name: 论文模板提取
+    summary: 从模板/格式规范/范文提取真实排版与体例规则，产出可套用的 Word 模板 + Format Spec
+    layer: 标准来源
+    writes: true
+    depends_on: []
+    covers:
+      - 命名样式提取与生成
+      - 体例规则反推（引注形态与位置、参考文献编码制、页眉与横线、分节页码、摘要上限、题注格式）
+    inputs: [PDF, docx 模板, 格式规范截图, 已排好版的范文 docx]
+    outputs: [template.docx, spec.json（含 conventions 块）, constraints.md, extraction_report.md]
+    triggers:
+      - 提取论文模板
+      - 论文格式规范 / 按这个规范排
+      - 从 PDF/Word 提取格式
+      - 毕业论文格式是什么
+      - 参考文献用什么编码制
+      - 引注是上标还是行内
+      - 页眉要不要横线
+      - 这是学校的模板，帮我做成 Word 模板
+    not_for:
+      - 检查我这份论文的格式对不对   # → format-audit
+      - 帮我把引注改成上标           # → cite-doctor
+
+  # ---------------------------------------------------------- L1
+  - id: format-audit
+    name: 格式与版式审计
+    summary: 检查段落样式合规、页面设置、页码方案、页眉文字与横线、字体字号行距、目录域
+    layer: L1
+    writes: true
+    depends_on: [template-extract]
+    covers: [style-compliance, page-setup, page-numbering, header, fonts, toc]
+    inputs: [docx, spec.json]
+    outputs: [L1 的 Issue 列表]
+    triggers:
+      - 页码不对 / 页码从哪开始
+      - 页眉没有横线 / 页眉文字不对
+      - 样式不统一 / 有直接格式硬改
+      - 目录没更新 / 目录条目对不上
+      - 字体字号行距不对
+      - 帮我看看排版
+    not_for:
+      - 引注上标 / 参考文献顺序    # → cite-doctor
+      - 破折号太多 / 标题太虚      # → text-style
+
+  # ---------------------------------------------------------- L2
+  - id: cite-doctor
+    name: 引注与文献处理
+    summary: 引注位置与形态、Ctrl+点击跳转到文献表、编号制（顺序编码制/著者-出版年制）、正反覆盖、GB/T 7714 著录、去重
+    layer: L2
+    writes: true
+    depends_on: [template-extract]
+    priority: high          # B 阶段优先升级
+    covers: [cite-position, cite-form, cite-jump, cite-numbering,
+             ref-coverage, ref-format, ref-duplicate]
+    inputs: [docx, spec.json, 参考文献表]
+    outputs: [L2 的 Issue 列表, 引注上标+内链的手术指令]
+    triggers:
+      - 引用序号要放右上角 / 上标
+      - Ctrl 单击引用能跳到参考文献
+      - 参考文献顺序不对 / 要按正文出现顺序排
+      - 有没有文献没被引用 / 有没有引用了但表里没有
+      - 一条文献被引了两次
+      - 著录格式不对 / GB/T 7714
+      - 引注要放在句号前
+    not_for:
+      - 这条引语是不是受访者原话    # → quote-verify
+      - 摘要超页 / 字数超了          # → structure-length
+
+  # ---------------------------------------------------------- L3
+  - id: text-style
+    name: 文字体例
+    summary: 引号体例、标点异常、破折号密度、标题体例（去冒号/平实化）、过程痕迹清理；另有 3 项可选检查默认关闭
+    layer: L3
+    writes: true
+    depends_on: [template-extract]
+    covers: [quote-style, punctuation, dash-density, heading-style, process-trace]
+    optional_covers: [cjk-spacing, fullwidth-halfwidth, term-consistency]   # 默认关闭，信噪比低
+    inputs: [docx, md]
+    outputs: [L3 的 Issue 列表, 文字替换指令]
+    triggers:
+      - 引号不统一 / 中英文引号混用
+      - 标点有问题 / 标点连用
+      - 破折号太多
+      - 标题太虚 / 标题不要冒号 / 标题平实一点
+      - 有没有写作痕迹没删干净
+      - 全角半角 / 中英文之间要不要空格   # 可选检查，需明确要求才开
+    not_for:
+      - 章节编号断了 / 图表编号不对        # → structure-length
+      - 引注上标                          # → cite-doctor
+
+  # ---------------------------------------------------------- L4
+  - id: structure-length
+    name: 结构与篇幅
+    summary: 章节编号连续性、图表覆盖与编号与题注、摘要/ABSTRACT 版式、双口径字数与分章配额
+    layer: L4
+    writes: true
+    depends_on: [template-extract]
+    covers: [heading-sequence, figure-table, abstract-layout, length]
+    inputs: [docx, spec.json]
+    outputs: [L4 的 Issue 列表]
+    triggers:
+      - 字数超了 / 要压到多少字
+      - 摘要超一页 / 摘要太长
+      - 每章都要有图表 / 我这章没图
+      - 图表编号断了 / 图题表题位置不对
+      - 章节编号乱了
+      - 正文一共多少字
+    not_for:
+      - 开题报告和正文对得上吗    # → proposal-consistency
+
+  # ---------------------------------------------------------- L4-26（方法学最重，单独成 skill）
+  - id: proposal-consistency
+    name: 开题与正文一致性核对
+    summary: 锚点法核对开题报告与正文（题目/概念/理论/方法要素/大纲/结论/文献承诺），三层判定 + 五类结论 + 证据卡 + 金标准跑分
+    layer: L4 · 26
+    writes: false           # 只出报告，不改文档
+    depends_on: []
+    covers: [proposal-consistency]
+    inputs: [开题报告（docx/PDF）, 论文正文（docx/md）]
+    outputs: [一致性核对报告（证据卡）, 召回/误报/定位准确率三指标]
+    triggers:
+      - 开题报告和正文对得上吗
+      - 我有没有写跑题
+      - 开题说要做的，正文做了吗
+      - 答辩怕被问开题和正文不一致
+    not_for:
+      - 格式不对 / 引注不对    # 本 skill 不查格式
+
+  # ---------------------------------------------------------- 可选（质性研究）
+  - id: quote-verify
+    name: 引语逐字校验
+    summary: 校验正文引语是否逐字取自语料库原文（不得拼接；跨句省略须用「……」），输出失配清单与命中率
+    layer: 可选
+    writes: false
+    depends_on: []
+    optional: true          # 需要用户自备语料库才能用
+    covers: [quote-verbatim]
+    inputs: [语料库目录, 论文正文]
+    outputs: [失配清单, 命中率]
+    triggers:
+      - 这条引语是不是受访者原话
+      - 引语有没有改字 / 有没有拼接
+      - 引语校验
+    not_for:
+      - 引用序号 / 参考文献顺序    # → cite-doctor
+    requires: 访谈语料库（定稿本目录）

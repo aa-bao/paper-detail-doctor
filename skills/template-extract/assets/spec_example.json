@@ -1,0 +1,1062 @@
+{
+  "meta": {
+    "template_name": "本科生毕业论文（设计）格式",
+    "source": {
+      "path": "F:/Coding/work/0813-城市家庭/template",
+      "kind": "images",
+      "pages": 14,
+      "note": "p1-p3 为文字规范（文字可直接读），p4-p14 为排版样张（走视觉分析）；两者互补"
+    },
+    "extracted_at": "2026-09-16T00:50:00+08:00",
+    "overall_confidence": "medium-high",
+    "confidence_legend": {
+      "high": "规范文字明确写出，或样张清晰可辨",
+      "medium": "由样张版面比例 / 常规排版惯例推断",
+      "low": "规范未规定，取了常见默认值，建议人工确认"
+    }
+  },
+  "fonts": {
+    "cn_default": "宋体",
+    "en_default": "Times New Roman"
+  },
+  "page": {
+    "paper": "A4",
+    "width_cm": 21.0,
+    "height_cm": 29.7,
+    "orientation": "portrait",
+    "margin_top_cm": 2.0,
+    "margin_bottom_cm": 2.0,
+    "margin_left_cm": 2.5,
+    "margin_right_cm": 2.0,
+    "gutter_cm": 0.0,
+    "gutter_position": "left",
+    "header_distance_cm": 1.5,
+    "footer_distance_cm": 1.75,
+    "doc_grid": "none",
+    "duplex": true,
+    "confidence": {
+      "margins": "high",
+      "gutter_position": "high",
+      "header_distance_cm": "low",
+      "footer_distance_cm": "low"
+    },
+    "evidence": [
+      "p1 §2.1 页面设置",
+      "p8 §2.2 页面设置"
+    ]
+  },
+  "numbering": {
+    "enabled": true,
+    "scheme": "numeric",
+    "levels": [
+      {
+        "lvlText": "第%1章",
+        "suff": "space"
+      },
+      {
+        "lvlText": "%1.%2",
+        "suff": "space"
+      },
+      {
+        "lvlText": "%1.%2.%3",
+        "suff": "space"
+      },
+      {
+        "lvlText": "%1.%2.%3.%4",
+        "suff": "space"
+      }
+    ],
+    "examples": {
+      "h1": "第1章 绪论",
+      "h2": "1.1 二级标题",
+      "h3": "1.1.1 三级标题"
+    },
+    "alternatives": [
+      "一、（一）、1、（1）",
+      "Ⅰ、Ⅱ、Ⅲ"
+    ],
+    "confidence": "high",
+    "evidence": [
+      "p2 §7(5)",
+      "p6 目录样张",
+      "p7 正文样张"
+    ]
+  },
+  "styles": {
+    "cover_title": {
+      "display_name": "封面题目",
+      "role": "cover",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 22.0,
+      "size_cn_label": "二号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 0,
+      "space_after_pt": 24,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "sample_text": "本科毕业论文（设计）",
+      "confidence": "low",
+      "evidence": [
+        "p1 §2.2(2) 仅指向“学位论文封面格式”，未给细则"
+      ]
+    },
+    "h1": {
+      "display_name": "一级标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "keep_with_next": true,
+      "sample_text": "绪论",
+      "confidence": {
+        "size_pt": "high",
+        "bold": "high",
+        "align": "high",
+        "space_before_pt": "high",
+        "space_after_pt": "low"
+      },
+      "evidence": [
+        "p2 §7(1)",
+        "p8 §2.2(1)",
+        "p7 样张"
+      ],
+      "base_style": null,
+      "outline_level": 0,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "h2": {
+      "display_name": "二级标题",
+      "role": "heading2",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 14.0,
+      "size_cn_label": "四号",
+      "bold": true,
+      "align": "left",
+      "space_before_pt": 12,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "keep_with_next": true,
+      "sample_text": "二级标题",
+      "confidence": {
+        "size_pt": "high",
+        "bold": "high",
+        "align": "high",
+        "space_before_pt": "low",
+        "space_after_pt": "low"
+      },
+      "evidence": [
+        "p2 §7(2)",
+        "p8 §2.2(2)",
+        "p7 样张；段间距规范未规定"
+      ],
+      "base_style": null,
+      "outline_level": 1,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "h3": {
+      "display_name": "三级标题",
+      "role": "heading3",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": true,
+      "align": "left",
+      "space_before_pt": 6,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "keep_with_next": true,
+      "sample_text": "三级标题",
+      "confidence": {
+        "size_pt": "high",
+        "bold": "high",
+        "align": "high",
+        "space_before_pt": "low",
+        "space_after_pt": "low"
+      },
+      "evidence": [
+        "p2 §7(3)",
+        "p8 §2.2(3)",
+        "p7 样张"
+      ],
+      "base_style": null,
+      "outline_level": 2,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "h4": {
+      "display_name": "四级标题",
+      "role": "heading4",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": true,
+      "align": "left",
+      "space_before_pt": 6,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "keep_with_next": true,
+      "sample_text": "四级标题",
+      "confidence": "high",
+      "evidence": [
+        "p2 §7(3) “三级及三级以下的标题：宋体、小四号、加粗、顶格”"
+      ],
+      "base_style": null,
+      "outline_level": 3,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "body": {
+      "display_name": "正文文本",
+      "role": "body",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 2,
+      "sample_text": "正文文字为宋体小四号，1.5 倍行距，两端对齐，每段首行缩进 2 字符。",
+      "confidence": "high",
+      "evidence": [
+        "p1 §2.1(4)(5)",
+        "p7 样张"
+      ]
+    },
+    "abstract_title_cn": {
+      "display_name": "摘要标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "base_style": null,
+      "sample_text": "摘  要",
+      "note": "“摘要”两字之间空两格",
+      "confidence": "high",
+      "evidence": [
+        "p1 §4(1)",
+        "p4 样张"
+      ]
+    },
+    "abstract_body_cn": {
+      "display_name": "摘要正文",
+      "role": "body",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 2,
+      "sample_text": "摘要内容为宋体小四号，500 字左右，每段首行缩进 2 字符，两端对齐。",
+      "confidence": "high",
+      "evidence": [
+        "p1 §4(2)",
+        "p4 样张"
+      ]
+    },
+    "keywords_cn": {
+      "display_name": "关键词",
+      "role": "body",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 6,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 2,
+      "sample_text": "关键词：毕业论文；模板；规范；图；表",
+      "note": "标签“关键词：”加粗，词条不加粗（run 级加粗，非段落样式）",
+      "confidence": "high",
+      "evidence": [
+        "p1 §4(3)",
+        "p4 样张"
+      ]
+    },
+    "abstract_title_en": {
+      "display_name": "英文摘要标题",
+      "role": "heading1",
+      "cn_font": "Times New Roman",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "base_style": null,
+      "sample_text": "ABSTRACT",
+      "confidence": "high",
+      "evidence": [
+        "p1 §5(1)",
+        "p5 样张"
+      ]
+    },
+    "abstract_body_en": {
+      "display_name": "英文摘要正文",
+      "role": "body",
+      "cn_font": "Times New Roman",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 2,
+      "sample_text": "It is the English translation of the Chinese abstract. Font: Times New Roman, Word Size: 12.",
+      "confidence": "high",
+      "evidence": [
+        "p1 §5(2)",
+        "p5 样张"
+      ]
+    },
+    "keywords_en": {
+      "display_name": "英文关键词",
+      "role": "body",
+      "cn_font": "Times New Roman",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 6,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 2,
+      "sample_text": "Key words: Thesis; template; criterion; figure; table",
+      "confidence": "high",
+      "evidence": [
+        "p1 §5(3)",
+        "p5 样张"
+      ]
+    },
+    "toc_title": {
+      "display_name": "目录标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "base_style": null,
+      "sample_text": "目  录",
+      "note": "“目录”两字之间空两格",
+      "confidence": "high",
+      "evidence": [
+        "p2 §6(1)",
+        "p6 样张"
+      ]
+    },
+    "toc_h1": {
+      "display_name": "目录一级",
+      "role": "toc",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "left",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "left_indent_chars": 0,
+      "sample_text": "第 1 章 绪论 ……………… 1",
+      "confidence": "high",
+      "evidence": [
+        "p2 §6(1) 目录样张：一级顶格"
+      ]
+    },
+    "toc_h2": {
+      "display_name": "目录二级",
+      "role": "toc",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "left",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "left_indent_chars": 1,
+      "sample_text": "1.1 二级标题 ……………… 1",
+      "confidence": "high",
+      "evidence": [
+        "p2 §6(1)：二级缩进 1 字符"
+      ]
+    },
+    "toc_h3": {
+      "display_name": "目录三级",
+      "role": "toc",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "left",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "left_indent_chars": 2,
+      "sample_text": "1.1.1 三级标题 ……………… 1",
+      "confidence": "high",
+      "evidence": [
+        "p2 §6(1)：三级缩进 2 字符"
+      ]
+    },
+    "table_caption": {
+      "display_name": "表题",
+      "role": "caption",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 6,
+      "space_after_pt": 3,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "表 2-1 几种主要油料植物的果实产量和油的产量",
+      "note": "表号与表名之间空一格，置于表上方正中",
+      "confidence": "high",
+      "evidence": [
+        "p3 §7(9)②",
+        "p10 样张"
+      ]
+    },
+    "table_text": {
+      "display_name": "表格文本",
+      "role": "table",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "油棕",
+      "confidence": "high",
+      "evidence": [
+        "p3 §7(9)①②",
+        "p10 §4.2",
+        "p10 样张"
+      ]
+    },
+    "figure_caption": {
+      "display_name": "图题",
+      "role": "caption",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 3,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "图 3-1 图题字体宋体、字号为五号",
+      "note": "图号与图名之间空一格，置于图下方正中",
+      "confidence": "high",
+      "evidence": [
+        "p3 §7(8)②",
+        "p9 样张"
+      ]
+    },
+    "figure_source": {
+      "display_name": "图片来源",
+      "role": "caption",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 9.0,
+      "size_cn_label": "小五",
+      "bold": false,
+      "align": "left",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "资料来源：作者整理，2026 年",
+      "confidence": "high",
+      "evidence": [
+        "p3 §7(8)③",
+        "p3 §7(9)③"
+      ]
+    },
+    "equation": {
+      "display_name": "公式",
+      "role": "equation",
+      "cn_font": "Times New Roman",
+      "en_font": "Times New Roman",
+      "size_pt": 10.5,
+      "size_cn_label": "五号",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 6,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "sample_text": "F = ma",
+      "note": "变量符号（含下标）用斜体；序号加圆括号标于公式后，序号右对齐",
+      "confidence": "high",
+      "evidence": [
+        "p3 §7(10)③",
+        "p9 样张"
+      ]
+    },
+    "ref_title": {
+      "display_name": "参考文献标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "sample_text": "参考文献",
+      "confidence": "high",
+      "evidence": [
+        "p8 §2.1 一级标题含“参考文献标题”",
+        "p12 样张"
+      ],
+      "base_style": null,
+      "outline_level": 0,
+      "keep_with_next": true,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "ref_entry": {
+      "display_name": "参考文献条目",
+      "role": "reference",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 12.0,
+      "size_cn_label": "小四",
+      "bold": false,
+      "align": "justify",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "left_indent_chars": 0,
+      "sample_text": "[1] 刘来福, 黄海洋, 曾文艺. 数学模型与数学建模[M]. 北京: 北京师范大学出版社, 1997, 50-51.",
+      "note": "序号左顶格，用阿拉伯数字加方括号；字号规范未明确，按小四取值",
+      "confidence": "medium",
+      "evidence": [
+        "p3 §8(2)",
+        "p12 样张"
+      ]
+    },
+    "ack_title": {
+      "display_name": "致谢标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "sample_text": "致  谢",
+      "confidence": "high",
+      "evidence": [
+        "p8 §2.1 一级标题含“致谢标题”",
+        "p13 样张"
+      ],
+      "base_style": null,
+      "outline_level": 0,
+      "keep_with_next": true,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "appendix_title": {
+      "display_name": "附录标题",
+      "role": "heading1",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 16.0,
+      "size_cn_label": "三号",
+      "bold": true,
+      "align": "center",
+      "space_before_pt": 12,
+      "space_after_pt": 6,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.5,
+      "first_line_indent_chars": 0,
+      "sample_text": "附  录",
+      "confidence": "high",
+      "evidence": [
+        "p8 §2.1 一级标题含“附录标题”",
+        "p14 样张"
+      ],
+      "base_style": null,
+      "outline_level": 0,
+      "keep_with_next": true,
+      "keep_lines": true,
+      "note": "大纲级别由样式自带（w:outlineLvl），不依赖 Word 内置 Heading 样式，便于清理多余样式"
+    },
+    "header": {
+      "display_name": "页眉",
+      "role": "header",
+      "cn_font": "宋体",
+      "en_font": "Times New Roman",
+      "size_pt": 9.0,
+      "size_cn_label": "小五",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "本科生毕业论文（设计）题目",
+      "note": "按本人论文题目替换；摘要、目录部分无页眉",
+      "confidence": "high",
+      "evidence": [
+        "p2 §7(6)",
+        "p8 §2.2(6)"
+      ]
+    },
+    "page_number": {
+      "display_name": "页码",
+      "role": "pagenumber",
+      "cn_font": "Times New Roman",
+      "en_font": "Times New Roman",
+      "size_pt": 9.0,
+      "size_cn_label": "小五",
+      "bold": false,
+      "align": "center",
+      "space_before_pt": 0,
+      "space_after_pt": 0,
+      "line_spacing_type": "multiple",
+      "line_spacing": 1.0,
+      "first_line_indent_chars": 0,
+      "sample_text": "1",
+      "confidence": "high",
+      "evidence": [
+        "p1 §4(5)",
+        "p2 §6(3)",
+        "p2 §7(7)"
+      ]
+    }
+  },
+  "table": {
+    "border_style": "three-line",
+    "top_bottom_pt": 1.5,
+    "middle_pt": 0.5,
+    "vertical_lines": false,
+    "header_repeat": true,
+    "allow_row_break": true,
+    "caption_position": "above",
+    "caption_numbering": "表{ch}-{n}",
+    "cell_align": "center",
+    "cell_valign": "center",
+    "confidence": "high",
+    "evidence": [
+      "p3 §7(9)①②",
+      "p10 §4.1.1"
+    ]
+  },
+  "figure": {
+    "caption_position": "below",
+    "caption_numbering": "图{ch}-{n}",
+    "source_note_position": "below-left",
+    "source_note_style": "图片来源",
+    "spacing_note": "图与上下正文之间各空一行",
+    "confidence": "high",
+    "evidence": [
+      "p3 §7(8)②③"
+    ]
+  },
+  "equation": {
+    "font": "Times New Roman",
+    "size_pt": 10.5,
+    "size_cn_label": "五号",
+    "align": "center",
+    "number_align": "right",
+    "numbering": "({ch}-{n})",
+    "own_line": true,
+    "italic_variables": true,
+    "confidence": "high",
+    "evidence": [
+      "p3 §7(10)②③",
+      "p9 §3.2.1"
+    ]
+  },
+  "references": {
+    "standard": "GB/T 7714-1987",
+    "style": "顺序编码制",
+    "number_format": "[n]",
+    "number_indent": "顶格",
+    "entry_style": "参考文献条目",
+    "confidence": "medium",
+    "evidence": [
+      "p3 §8(1)(2)"
+    ]
+  },
+  "sections": [
+    {
+      "name": "封面",
+      "header": null,
+      "page_number": null
+    },
+    {
+      "name": "摘要 / ABSTRACT / 目录",
+      "header": null,
+      "page_number": {
+        "fmt": "lowerRoman",
+        "start": 1
+      }
+    },
+    {
+      "name": "正文 / 参考文献 / 致谢 / 附录",
+      "header": "本科生毕业论文（设计）题目",
+      "page_number": {
+        "fmt": "decimal",
+        "start": 1
+      }
+    }
+  ],
+  "demo": [
+    {
+      "block": "cover",
+      "text": "本科毕业论文（设计）",
+      "lines": [
+        "题目：＿＿＿＿＿＿＿＿＿＿＿＿＿＿",
+        "学　　院：＿＿＿＿＿＿＿＿",
+        "专　　业：＿＿＿＿＿＿＿＿",
+        "学　　号：＿＿＿＿＿＿＿＿",
+        "姓　　名：＿＿＿＿＿＿＿＿",
+        "指导教师：＿＿＿＿＿＿＿＿",
+        "＿＿＿＿年＿＿月"
+      ]
+    },
+    {
+      "block": "new_section",
+      "page_number": {
+        "fmt": "lowerRoman",
+        "start": 1
+      },
+      "no_header": true,
+      "page_number_footer": true
+    },
+    {
+      "style": "abstract_title_cn",
+      "text": "摘  要"
+    },
+    {
+      "style": "abstract_body_cn",
+      "text": "摘要内容（宋体，小四号）：论文摘要重点概述本文研究的问题、意义、创新之处和主要观点、结论，500 字左右，每段首行缩进 2 字符，两端对齐。"
+    },
+    {
+      "style": "keywords_cn",
+      "runs": [
+        {
+          "text": "关键词：",
+          "bold": true
+        },
+        {
+          "text": "毕业论文；模板；规范；图；表"
+        }
+      ]
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "abstract_title_en",
+      "text": "ABSTRACT"
+    },
+    {
+      "style": "abstract_body_en",
+      "text": "It is the English translation of the Chinese abstract. Font: Times New Roman, Word Size: 12 (same as 小四)."
+    },
+    {
+      "style": "keywords_en",
+      "runs": [
+        {
+          "text": "Key words: ",
+          "bold": true
+        },
+        {
+          "text": "Thesis; template; criterion; figure; table"
+        }
+      ]
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "block": "toc",
+      "text": "目  录"
+    },
+    {
+      "block": "new_section",
+      "header": "本科生毕业论文（设计）题目",
+      "page_number": {
+        "fmt": "decimal",
+        "start": 1
+      },
+      "page_number_footer": true
+    },
+    {
+      "style": "h1",
+      "text": "绪论",
+      "fallback_number": "第1章"
+    },
+    {
+      "style": "body",
+      "text": "绪论的内容至少应该包括选题的目的与意义、研究范围及需要达到的技术要求、国内外发展概况及存在问题、指导思想、解决的主要问题等。"
+    },
+    {
+      "style": "body",
+      "text": "正文的每一章章题目为一级标题：宋体、三号、加粗、居中，章序号与章名间空一个字符。"
+    },
+    {
+      "style": "h2",
+      "text": "二级标题",
+      "fallback_number": "1.1"
+    },
+    {
+      "style": "body",
+      "text": "二级标题宋体、四号、加粗、顶格，标题序号和名称空一个字符。"
+    },
+    {
+      "style": "h3",
+      "text": "三级标题",
+      "fallback_number": "1.1.1"
+    },
+    {
+      "style": "body",
+      "text": "三级标题宋体、小四号加粗、顶格，标题序号和名称空一个字符。"
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "h1",
+      "text": "表格样式",
+      "fallback_number": "第2章"
+    },
+    {
+      "style": "h2",
+      "text": "三线表",
+      "fallback_number": "2.1"
+    },
+    {
+      "style": "body",
+      "text": "表格应设计合理，排列紧凑，须为“三线表”（无竖线）：上下线为 1.5 磅，中间线为 0.5 磅，表中字体为五号宋体、居中。"
+    },
+    {
+      "block": "table",
+      "caption": "表 2-1 几种主要油料植物的果实产量和油的产量",
+      "header": [
+        "名称",
+        "果实产量（t/hm²）",
+        "油的产量（t/hm²）"
+      ],
+      "rows": [
+        [
+          "油棕",
+          "19.1",
+          "4.8"
+        ],
+        [
+          "大豆",
+          "2.3",
+          "0.4"
+        ],
+        [
+          "油菜籽",
+          "3.0",
+          "1.2"
+        ]
+      ],
+      "source_note": "资料来源：作者整理，2026 年"
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "h1",
+      "text": "图与公式",
+      "fallback_number": "第3章"
+    },
+    {
+      "style": "h2",
+      "text": "图与公式的标注",
+      "fallback_number": "3.1"
+    },
+    {
+      "block": "figure",
+      "text": "（此处插入图片，居中；图与上下正文之间各空一行）",
+      "caption": "图 3-1 图题字体宋体、字号为五号",
+      "source_note": "资料来源：作者整理，2026 年"
+    },
+    {
+      "style": "body",
+      "text": "公式用阿拉伯数字连续编序号（有章节按章编号），序号加圆括号标记于公式后面，公式居中，序号右对齐。"
+    },
+    {
+      "block": "equation",
+      "text": "F = ma",
+      "note": "式(3-1)说明了 XX 之间的关系。"
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "ref_title",
+      "text": "参考文献"
+    },
+    {
+      "style": "ref_entry",
+      "text": "[1] 刘来福, 黄海洋, 曾文艺. 数学模型与数学建模[M]. 北京: 北京师范大学出版社, 1997, 50-51."
+    },
+    {
+      "style": "ref_entry",
+      "text": "[2] 叶立军. 数学教师课堂教学行为比较研究[D]. 南京: 南京师范大学, 2012."
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "ack_title",
+      "text": "致  谢"
+    },
+    {
+      "style": "body",
+      "text": "致谢应以简短的文字对毕业论文（设计）或研究过程中曾给予帮助的人员或单位表示自己的谢意。"
+    },
+    {
+      "block": "pagebreak"
+    },
+    {
+      "style": "appendix_title",
+      "text": "附  录"
+    },
+    {
+      "style": "body",
+      "text": "一些不宜放入正文但是又对文章有说明意义的材料，可放在附录中，如公式的推演、编写的程序、符号说明等。"
+    },
+    {
+      "block": "style_overview"
+    }
+  ],
+  "open_questions": [
+    {
+      "item": "一级标题段后间距",
+      "detail": "规范只写了“段前 12 磅”，未规定段后；当前取 0 磅",
+      "confidence": "low"
+    },
+    {
+      "item": "二级 / 三级标题的段前段后间距",
+      "detail": "规范未规定；当前二级取段前 12 磅、三级取段前 6 磅，均为视觉合理值",
+      "confidence": "low"
+    },
+    {
+      "item": "页眉 / 页脚距边界距离",
+      "detail": "规范未规定；当前取页眉 1.5cm、页脚 1.75cm",
+      "confidence": "low"
+    },
+    {
+      "item": "参考文献条目字号",
+      "detail": "规范未明确条目字号；当前取小四号宋体",
+      "confidence": "medium"
+    },
+    {
+      "item": "封面字体与字号",
+      "detail": "规范仅指向“学位论文封面格式”，未给细则；当前取宋体二号加粗居中",
+      "confidence": "low"
+    },
+    {
+      "item": "装订线宽度",
+      "detail": "规范只写了“装订线位置居左”，未给宽度；当前取 0cm",
+      "confidence": "low"
+    },
+    {
+      "item": "三线表的行距与单元格边距",
+      "detail": "规范未规定；当前取单倍行距、默认单元格边距",
+      "confidence": "low"
+    }
+  ]
+}
