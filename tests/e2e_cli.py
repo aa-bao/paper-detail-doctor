@@ -156,7 +156,15 @@ def main():
     rc, out = run(['workflow/audit_all.py', '-d', docx])
     check('cite-form / cite-jump 均已消失',
           'cite-form' not in out and 'cite-jump' not in out, out[-300:])
-    check('只剩已知的 ref-format 一条', '问题：1 条' in out, out[-200:])
+    # 不要断言"全稿只剩 1 条问题"：audit_all 跑的是注册表里的全部子 skill，
+    # format-audit / text-style / structure-length 在样本上本来就有正常告警，
+    # 总数会随接入的 skill 数变化。这里只对该 e2e 关心的引注/文献类规则下断言：
+    # 注入的两类缺陷已消失，只剩样本自带的、本就不可自动修复的 ref-format 一条。
+    _d2 = _json.loads(open(j, encoding='utf-8').read())
+    cite_ish = [i['rule'] for i in _d2['issues']
+                if i['rule'].startswith('cite-') or i['rule'].startswith('ref-')]
+    check('引注/文献类只剩已知的 ref-format 一条', cite_ish == ['ref-format'],
+          'cite-ish rules=%s' % cite_ish)
     rc, out = run(['workflow/plan.py', '-d', docx])
     check('新计划里没有可自动修复项', '可自动修复：0 条' in out, out[-300:])
     rc, out = run(['workflow/apply.py', '-p', os.path.join(tmp, '.thesis-doctor', 'plan.yaml'),

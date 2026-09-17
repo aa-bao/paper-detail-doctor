@@ -146,6 +146,12 @@ def now():
     return time.strftime('%Y-%m-%dT%H:%M:%S')
 
 
+# 所有会产出 Issue 的子 skill 目录名。新增子 skill 时**必须**加进这里，
+# 否则它的修复动作会因为"在 audit.json 里找不到 issue_id"而被当成过期条目跳过 ——
+# 表面现象是"plan 里勾了但 apply 说找不到"，很难查。
+ALL_SKILLS = ('format-audit', CITE, 'text-style', 'structure-length')
+
+
 def resolve_params_from_audit(docx_path, items):
     """按 issue_id 从 audit.json 回填 action 的 params。
 
@@ -153,7 +159,7 @@ def resolve_params_from_audit(docx_path, items):
     反而多一处可能被改坏的地方。
     """
     blobs = []
-    for skill in (CITE,):
+    for skill in ALL_SKILLS:
         b = load_audit(docx_path, skill)
         if b:
             blobs.append(b)

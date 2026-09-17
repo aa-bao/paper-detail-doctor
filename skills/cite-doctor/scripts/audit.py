@@ -44,19 +44,13 @@ if PKG not in sys.path:
 
 from shared.lib.docx_ops import make_locator                     # noqa: E402
 from shared.lib.docx_scan import Scanner, excerpt, issue_id, norm  # noqa: E402
+from shared.lib.standards import (                                # noqa: E402
+    describe, find_spec, load_spec, resolve_standard,
+)
 from shared.lib import report as R                                # noqa: E402
 
 SKILL = 'cite-doctor'
 LAYER = 'L2'
-
-# 通用学术惯例兜底（standard_source='default' 时生效）
-DEFAULTS = {
-    'cite_style': 'superscript-bracket',   # 上标 + 方括号
-    'cite_position': 'before-punct',
-    'cite_allow_explicit_size': False,
-    'bib_system': 'sequence',              # 顺序编码制
-    'bib_standard': 'GB/T 7714',
-}
 
 TYPE_MARKER_RE = re.compile(r'\[(M|J|D|C|N|R|S|P|A|Z|G|EB/OL|DB/OL|J/OL|M/CD|C/OL|N/OL)\]')
 # 出版年：**不要**要求前后有括号或逗号。
@@ -76,66 +70,6 @@ YEAR_RE = re.compile(r'(?<!\d)(?:19|20)\d{2}(?!\d)')
 #     …, 2025(11).                 ← 有年有期、后面直接句点
 # 会被准确抓住。宁可判不出，不可误报 —— 报告噪声一起来就没人看了。
 PAGES_AFTER_YEAR_RE = re.compile(r'[:：]\s*\d')
-
-
-# ================================================================ 标准来源解析
-
-def load_spec(path):
-    if not path:
-        return None, None
-    if not os.path.exists(path):
-        raise SystemExit('spec 文件不存在：%s' % path)
-    with open(path, encoding='utf-8') as f:
-        return json.load(f), os.path.abspath(path)
-
-
-def find_spec(docx_path):
-    """在文档旁边按约定位置找 spec.json。找不到就返回 None（走默认惯例）。"""
-    d = os.path.dirname(os.path.abspath(docx_path))
-    for name in ('paper-spec.json', 'spec.json',
-                 os.path.join('.thesis-doctor', 'spec.json'),
-                 os.path.join('.paper-doctor', 'spec.json')):
-        p = os.path.join(d, name)
-        if os.path.exists(p):
-            return p
-    return None
-
-
-def resolve_standard(spec):
-    """把 spec.conventions 解析成统一口径，并给出每个字段的来源。
-
-    返回 (std:dict, src:dict, notes:list[str])
-    src[key] ∈ template/config/default —— 每条 Issue 的 standard_source 从这里取。
-    """
-    std, src, notes = {}, {}, []
-    conv = ((spec or {}).get('conventions') or {})
-    cit = conv.get('citation') or {}
-    bib = conv.get('bibliography') or {}
-
-    def pick(key, conv_val, default_val, name):
-        if conv_val not in (None, '', []):
-            std[key] = conv_val
-            src[key] = 'template'
-        else:
-            std[key] = default_val
-            src[key] = 'default'
-            notes.append('%s 未在 spec 中给出，按通用学术惯例取「%s」' % (name, default_val))
-
-    pick('cite_style', cit.get('style'), DEFAULTS['cite_style'], '引注形态')
-    pick('cite_position', cit.get('position'), DEFAULTS['cite_position'], '引注位置')
-    # 显式字号：范文没写就说明"没有显式设置"，这正是期望状态
-    if cit.get('superscript_size_ratio') is not None:
-        std['cite_allow_explicit_size'] = True
-        src['cite_allow_explicit_size'] = 'template'
-    else:
-        std['cite_allow_explicit_size'] = False
-        src['cite_allow_explicit_size'] = 'template' if cit.get('style') else 'default'
-    pick('bib_system', bib.get('system'), DEFAULTS['bib_system'], '参考文献编码制')
-    pick('bib_standard', bib.get('standard'), DEFAULTS['bib_standard'], '著录标准')
-    if not spec:
-        notes.insert(0, '**未提供模板 spec**，全部判定依据为通用学术惯例（default），'
-                        '不代表你学校的格式要求。要按学校标准判，先跑 template-extract。')
-    return std, src, notes
 
 
 # ================================================================ 上下文
@@ -564,12 +498,8 @@ def audit(docx_path, spec_path=None, ignore_path=None, verbose=True):
 
 
 def _std_note(ctx):
-    s = ctx.src
-    bits = []
-    for label, key in (('引注形态', 'cite_style'), ('引注位置', 'cite_position'),
-                       ('编码制', 'bib_system'), ('著录标准', 'bib_standard')):
-        bits.append('%s=%s(%s)' % (label, ctx.std[key], R.SRC_LABEL.get(s[key], s[key])))
-    return '；'.join(bits)
+    return describe(ctx.std, ctx.src,
+                    ['cite_style', 'cite_position', 'bib_system', 'bib_standard'])
 
 
 def _sha256(path):

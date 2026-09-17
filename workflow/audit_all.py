@@ -8,7 +8,9 @@ workflow/audit_all.py —— 跑全部适用子 skill，合成**一份**报告�
     "帮我看看这份论文有没有问题"。这时候要的是**一份**按严重度排序的报告，
     而不是七个 skill 各吐一份。合并在这一层做，子 skill 只管产 Issue。
 
-目前接入：cite-doctor（L2）。其余子 skill 建好后会自动被发现 —— 见 SKILLS 表。
+已接入：format-audit(L1) / cite-doctor(L2) / text-style(L3) / structure-length(L4)。
+**发现是显式的**：子 skill 必须登记进下面的 SKILLS 表才会被跑；表里列了但脚本
+不存在（如尚未实现的 proposal-consistency）会被安静跳过。
 
 用法
     python workflow/audit_all.py -d "F:/论文/初稿.docx"
@@ -28,8 +30,14 @@ from shared.lib.ooxml_guard import is_locked, sha256_file                 # noqa
 from shared.lib.docx_scan import Scanner                                  # noqa: E402
 
 # 子 skill 注册表。新增子 skill：加一行，并在 audit_dir 下产出 audit.json。
+#
+# 顺序 = 报告里的呈现顺序，大致按"先版式、再引注、再文字、最后结构篇幅"排，
+# 让用户从"最外层最容易改的"一路读到"最全局的"。
 SKILLS = [
+    {'id': 'format-audit', 'layer': 'L1', 'run': 'skills/format-audit/scripts/audit.py'},
     {'id': CITE, 'layer': 'L2', 'run': 'skills/cite-doctor/scripts/audit.py'},
+    {'id': 'text-style', 'layer': 'L3', 'run': 'skills/text-style/scripts/audit.py'},
+    {'id': 'structure-length', 'layer': 'L4', 'run': 'skills/structure-length/scripts/audit.py'},
 ]
 
 
