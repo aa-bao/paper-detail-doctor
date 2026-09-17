@@ -3,7 +3,7 @@
 r"""
 tests/run_all.py —— 跑齐全部验收，末尾给一张总表
 
-改完共享层或任何子 skill 之后跑这一个就够了。七份测试各有分工，缺一不可：
+改完共享层或任何子 skill 之后跑这一个就够了。八份测试各有分工，缺一不可：
     selftest_shared_lib       读侧/写侧/闸门的**机制**是否成立（定位、幂等、快照、回滚）
     selftest_cite_doctor      L2 规则是否**真的能查出问题**（注入缺陷 → 检出 → 修复 → 复检）
     selftest_format_audit     L1 规则（注入页边距/页码/页眉/字号/目录域）
@@ -19,10 +19,19 @@ tests/run_all.py —— 跑齐全部验收，末尾给一张总表
 确认能检出 → 再确认改完就消失**。只跑"干净稿不报错"是没有意义的 ——
 一个永远返回空列表的检查器也能通过那种测试。
 
+关于样本
+    其中 6 套需要一份真实 docx 作样本（注入式自检必须有结构完整的文档才能改）。
+    本包**不把任何人的本机路径写进代码**：样本路径按
+    命令行参数 → 环境变量 PDD_SAMPLE/PDD_PROPOSAL → tests/sample.local.yaml
+    的顺序解析（见 tests/sample.local.example.yaml）。
+    样本缺失时那几套会**明确报「样本未提供」并跳过（退出码 2）**，
+    在下表里记作「跳过」——**不计入通过，也不算失败**。
+    这是有意为之：绝不把"没跑"伪装成"通过"。
+    共享层机制、路由可区分性两套不需要样本，任何机器上都能跑全。
+
 用法
-    cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/run_all.py
-    ... tests/run_all.py "D:/别的样本.docx"
+    python tests/run_all.py
+    python tests/run_all.py "D:/我的论文/初稿.docx"
 """
 import os
 import re
@@ -45,9 +54,13 @@ SUITES = [
 ]
 
 
+# 退出码 2 + 这些字样 = 样本没配好 -> 属"跳过"，不是"崩溃"
+SKIP_MARKS = ('样本不存在', '样本未提供', '正被 WPS/Word 独占')
+
+
 def main():
     args = sys.argv[1:]
-    rows, total_ok, total_fail = [], 0, 0
+    rows, total_ok, total_fail, total_skip = [], 0, 0, 0
     for label, script in SUITES:
         p = subprocess.run([PY, os.path.join(HERE, script)] + args,
                            cwd=PKG, capture_output=True, text=True,
@@ -56,22 +69,33 @@ def main():
         out = '\n'.join(l for l in out.splitlines()
                         if 'shell-runtime-bash-env' not in l and 'command not found' not in l)
         m = re.search(r'通过 (\d+) 项，失败 (\d+) 项', out)
-        ok, bad = (int(m.group(1)), int(m.group(2))) if m else (0, -1)
+        if m:
+            ok, bad, skip = int(m.group(1)), int(m.group(2)), False
+        elif p.returncode == 2 and any(k in out for k in SKIP_MARKS):
+            ok, bad, skip = 0, 0, True
+        else:
+            ok, bad, skip = 0, -1, False
         total_ok += max(ok, 0)
-        total_fail += max(bad, 0) or (0 if m else 1)
-        rows.append((label, script, ok, bad if m else -1, out))
+        total_fail += max(bad, 0) or (0 if (m or skip) else 1)
+        total_skip += 1 if skip else 0
+        rows.append((label, script, ok, bad, skip, out))
 
-    print('\n' + '=' * 70)
-    print('%-28s %-26s %6s %6s' % ('测试', '脚本', '通过', '失败'))
-    print('-' * 70)
-    for label, script, ok, bad, _ in rows:
-        print('%-28s %-26s %6d %6s' % (label, script, ok, bad if bad >= 0 else '崩溃'))
-    print('-' * 70)
-    print('%-28s %-26s %6d %6d' % ('合计', '', total_ok, total_fail))
+    print('\n' + '=' * 78)
+    print('%-30s %-26s %6s %6s %6s' % ('测试', '脚本', '通过', '失败', '跳过'))
+    print('-' * 78)
+    for label, script, ok, bad, skip, _ in rows:
+        if skip:
+            print('%-30s %-26s %6s %6s %6s' % (label, script, '-', '-', '跳过'))
+        else:
+            print('%-30s %-26s %6d %6s %6s'
+                  % (label, script, ok, bad if bad >= 0 else '崩溃', ''))
+    print('-' * 78)
+    print('%-30s %-26s %6d %6d %6d'
+          % ('合计', '', total_ok, total_fail, total_skip))
 
     if total_fail:
         print('\n失败详情：')
-        for label, script, ok, bad, out in rows:
+        for label, script, ok, bad, skip, out in rows:
             if bad:
                 print('\n---- %s ----' % label)
                 started = False
@@ -82,7 +106,21 @@ def main():
                         started = True
                     if started:
                         print('  ' + line)
-    print('\n结论：%s' % ('全部通过' if not total_fail else '存在失败，见上'))
+
+    if total_skip:
+        print('\n跳过的 %d 套（样本未配置，**跳过不等于通过**）：' % total_skip)
+        for label, script, ok, bad, skip, out in rows:
+            if skip:
+                print('  · %-30s %s' % (label, script))
+        print('  配置方法见 tests/sample.local.example.yaml（或设 PDD_SAMPLE / PDD_PROPOSAL）。')
+
+    if total_fail:
+        verdict = '存在失败，见上'
+    elif total_skip:
+        verdict = '已跑的全通过；但 %d 套因未配置样本被跳过 —— 不能算全部通过' % total_skip
+    else:
+        verdict = '全部通过'
+    print('\n结论：%s' % verdict)
     return 0 if not total_fail else 1
 
 

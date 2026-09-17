@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+# 把本文件复制为 tests/sample.local.yaml（该文件名已被 .gitignore 的 *.local.yaml 覆盖，不会入库）
+# 然后填上你自己的文档路径。测试会优先读环境变量 PDD_SAMPLE / PDD_PROPOSAL。
+#
+# 只有一部分测试需要样本：
+#   · cite-doctor / format-audit / text-style / structure-length 的注入式自检
+#   · proposal-consistency 的金标准跑分
+#   · 命令行全链路 e2e
+# 其余（共享层机制、路由可区分性）不需要样本，任何机器上都能跑。
+
+# 论文正文 docx（必须是 docx；本包不改 md，md 只作为正文的另一种来源被读）
+thesis: "D:/我的论文/初稿.docx"
+
+# 开题报告 docx —— 仅 proposal-consistency 需要
+proposal: "D:/我的论文/开题报告.docx"

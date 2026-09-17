@@ -21,7 +21,7 @@ tests/selftest_text_style.py —— text-style 的**注入式**验收
 
 怎么跑
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/selftest_text_style.py
+    "python" tests/selftest_text_style.py
 """
 import importlib.util
 import os
@@ -32,6 +32,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)
+sys.path.insert(0, HERE)   # 让 tests/_sample.py 可被 import
 
 from shared.lib.docx_ops import (                                    # noqa: E402
     Doc, W, insert_paragraph_after, make_locator,
@@ -39,7 +40,8 @@ from shared.lib.docx_ops import (                                    # noqa: E40
 from shared.lib.docx_scan import Scanner, norm                       # noqa: E402
 from shared.lib.ooxml_guard import sha256_file                       # noqa: E402
 
-DEFAULT_SAMPLE = r'F:\Coding\work\0813-城市家庭\初稿.docx'
+from _sample import thesis as _sample_thesis, missing_hint as _missing_hint   # noqa: E402
+DEFAULT_SAMPLE = _sample_thesis()
 TMP = tempfile.mkdtemp(prefix='pdd-text-selftest-')
 
 _ok, _fail, _notes = 0, 0, []
@@ -212,8 +214,9 @@ def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SAMPLE
     global AUD
     AUD = load_audit_mod()
-    if not os.path.exists(src):
+    if not src or not os.path.exists(src):
         print('样本不存在：%s' % src)
+        print(_missing_hint())
         return 2
     print('样本：%s\n临时目录：%s' % (src, TMP))
 

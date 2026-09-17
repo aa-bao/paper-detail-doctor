@@ -47,7 +47,7 @@ try:
 except ImportError:  # pragma: no cover
     raise SystemExit(
         "需要 python-docx。用那个 venv 跑：\n"
-        '  "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe"'
+        '  "python"'
     )
 
 from docx.oxml import parse_xml

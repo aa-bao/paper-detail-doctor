@@ -19,7 +19,7 @@ tests/e2e_cli.py —— 命令行全链路验收（audit_all → plan → apply 
 
 怎么跑
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/e2e_cli.py
+    "python" tests/e2e_cli.py
 """
 import os
 import shutil
@@ -36,7 +36,8 @@ import selftest_cite_doctor as T                                    # noqa: E402
 from shared.lib.docx_scan import Scanner                            # noqa: E402
 from shared.lib.ooxml_guard import sha256_file                      # noqa: E402
 
-SAMPLE = r'F:\Coding\work\0813-城市家庭\初稿.docx'
+from _sample import thesis as _sample_thesis, missing_hint as _missing_hint   # noqa: E402
+SAMPLE = _sample_thesis()
 PY = sys.executable
 _ok, _fail, _notes = 0, 0, []
 
@@ -63,8 +64,9 @@ def run(args, expect_rc=(0,)):
 
 
 def main():
-    if not os.path.exists(SAMPLE):
+    if not SAMPLE or not os.path.exists(SAMPLE):
         print('样本不存在：%s' % SAMPLE)
+        print(_missing_hint())
         return 2
     tmp = tempfile.mkdtemp(prefix='pdd-e2e-')
     docx = os.path.join(tmp, '初稿.docx')

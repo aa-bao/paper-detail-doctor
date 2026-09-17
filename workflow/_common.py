@@ -63,7 +63,7 @@ def read_plan_yaml(path):
     except ImportError:
         raise SystemExit(
             'plan.yaml 需要 pyyaml 解析。装一下：\n'
-            '  "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/pip.exe" install pyyaml')
+            '  "pip" install pyyaml')
     with open(path, encoding='utf-8') as f:
         return yaml.safe_load(f) or {}
 

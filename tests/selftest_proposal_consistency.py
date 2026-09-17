@@ -6,7 +6,7 @@ tests/selftest_proposal_consistency.py —— proposal-consistency 的**注入�
 为什么不能只跑一遍干净文档就收工
     "在一份本来就干净的稿子上跑出 0 条问题"完全不能说明检查器是好的 ——
     一个永远返回空列表的函数也能做到。所以这里反过来做：
-    **用人工核对的金标准（tests/golden/开题核对-城市家庭.yaml）做三指标跑分，
+    **用人工核对的金标准（tests/golden/proposal-consistency.yaml）做三指标跑分，
     再做注入式反向验证证明检查器真在读内容、不是硬编码输出。**
 
 三指标（定义写死，全部当次从真实运行读回，不许用计划值/内存值）
@@ -29,9 +29,9 @@ tests/selftest_proposal_consistency.py —— proposal-consistency 的**注入�
 
 怎么跑
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" \
+    "python" \
         tests/selftest_proposal_consistency.py "F:/路径/初稿.docx" "F:/路径/开题报告.docx"
-    （两参数都可省，缺省用城市家庭论文真实路径）
+    （两参数都可省，缺省读 tests/sample.local.yaml）
 """
 import importlib.util
 import os
@@ -44,12 +44,15 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)
+sys.path.insert(0, HERE)   # 让 tests/_sample.py 可被 import
 
 from shared.lib.docx_scan import Scanner                           # noqa: E402
 
-DEFAULT_THESIS = r'F:\Coding\work\0813-城市家庭\初稿.docx'
-DEFAULT_PROPOSAL = r'F:\Coding\work\0813-城市家庭\docs\开题报告.docx'
-GOLDEN = os.path.join(HERE, 'golden', '开题核对-城市家庭.yaml')
+from _sample import (thesis as _sample_thesis, proposal as _sample_proposal,   # noqa: E402
+                    missing_hint as _missing_hint)
+DEFAULT_THESIS = _sample_thesis()
+DEFAULT_PROPOSAL = _sample_proposal()
+GOLDEN = os.path.join(HERE, 'golden', 'proposal-consistency.yaml')
 
 TMP = tempfile.mkdtemp(prefix='pdd-prop-selftest-')
 
@@ -101,21 +104,30 @@ def load_golden():
         return yaml.safe_load(f)
 
 
-# golden 差异 → (anchor, conclusion) 映射
-GOLDEN_DIFF_KEYS = {
-    ('A5', '改动'): 'A5-01',
-    ('A5', '偏离'): 'A5-02',
-    ('A5', '缺失'): 'A5-03',
-    ('A4', '改动'): 'A4-03',
-}
+def build_keys(golden):
+    """从金标准推导 (anchor, conclusion) -> 差异 id。
 
-# 每个 golden 差异的"正文正确位置"关键词（用于定位准确率判定）
-GOLDEN_LOC_KEYWORD = {
-    ('A5', '改动'): '核心概念与理论基础',
-    ('A5', '偏离'): ('祖辈接棒', '隔代照料'),
-    ('A5', '缺失'): ('情感分配不对称的后果', '代际情感'),
-    ('A4', '改动'): '完成访谈',
-}
+    不耦合任何具体案例：差异 id 形如 'A5-01'（前缀就是锚点），type 就是结论。
+    """
+    keys = {}
+    for d in golden['expected']['差异']:
+        did = str(d['id'])
+        keys[(did.split('-')[0], d['type'])] = did
+    return keys
+
+
+def build_locate(golden):
+    """定位准确率用的关键词：差异 id -> 关键词序列。
+
+    这些关键词是**本案例的数据**（"位置指对了"的判据），放在金标准 yaml 的
+    locate 段里，而不是写死在测试代码里 —— 换成别的论文时只改 yaml。
+    """
+    loc = {}
+    for did, kws in (golden.get('locate') or {}).items():
+        if isinstance(kws, str):
+            kws = [kws]
+        loc[str(did)] = [str(k) for k in kws]
+    return loc
 
 
 def located_text(docx, it):
@@ -180,17 +192,21 @@ def main():
     proposal = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_PROPOSAL
 
     AUD, AUD_PATH = load_audit_mod()
-    if not os.path.exists(thesis):
+    if not thesis or not os.path.exists(thesis):
         print('正文样本不存在：%s' % thesis)
+        print(_missing_hint('正文样本'))
         return 2
-    if not os.path.exists(proposal):
+    if not proposal or not os.path.exists(proposal):
         print('开题样本不存在：%s' % proposal)
+        print(_missing_hint('开题样本'))
         return 2
     print('正文：%s\n开题：%s\n临时目录：%s' % (thesis, proposal, TMP))
 
     golden = load_golden()
     golden_diffs = golden['expected']['差异']          # 4 处真差异
     golden_consistent = golden['expected']['一致']      # 8 条对齐锚点
+    GOLDEN_DIFF_KEYS = build_keys(golden)             # 由金标准推导，不写死
+    GOLDEN_LOC = build_locate(golden)                 # 定位关键词也来自金标准
 
     # ================================================================== 0 基线：CLI 缺 -p 必须报错退出
     section('0 CLI 契约：缺 -p 必须报错退出（不许假装跑成功）')
@@ -202,6 +218,11 @@ def main():
           'stderr=%s' % (p.stderr or '').strip()[:60])
 
     # ================================================================== 1 真实双文档跑分
+    # 金标准完整性：每条差异都必须有定位关键词（否则定位准确率无法判定）
+    missing_loc = [d['id'] for d in golden_diffs if not GOLDEN_LOC.get(str(d['id']))]
+    check('金标准每条差异都带了定位关键词（locate 段完整）', not missing_loc,
+          '缺 locate 的差异：%s' % missing_loc)
+
     section('1 金标准跑分（真实双文档，数字当次从运行读回）')
     res = audit(thesis, proposal)
     issues = res['issues']
@@ -230,10 +251,9 @@ def main():
         k = (it.get('anchor'), it.get('conclusion'))
         if k not in GOLDEN_DIFF_KEYS:
             continue
-        kw = GOLDEN_LOC_KEYWORD[k]
+        kw = GOLDEN_LOC.get(GOLDEN_DIFF_KEYS[k]) or []
         txt = located_text(thesis, it)
-        ok = any(kk in txt for kk in kw) if isinstance(kw, tuple) else (kw in txt)
-        if ok:
+        if any(kk in txt for kk in kw):
             loc_hit += 1
     loc_acc = (loc_hit / len(hit_keys)) if hit_keys else 0.0
     check('定位准确率=100%（4/4 位置正确）', loc_hit == len(hit_keys),
@@ -266,7 +286,12 @@ def main():
     a4m = any(a == 'A4' and '方法要素' in v for a, v in passed)
     rows.append(('A4', '方法要素',
                  '一致(passed)' if a4m else '?'))
-    a5f = any(a == 'A5' and '四重逻辑' in v for a, v in passed)
+    # A5 的通过项标签由锚点档案驱动（本项目里那 4 个标签叫"四重逻辑"），
+    # 所以同时看 value 与 note —— 不依赖某个写死的标签文案。
+    pfull = res['meta']['passed']
+    a5f = any(p['anchor'] == 'A5'
+              and ('四重逻辑' in p['value'] or '四重逻辑' in (p.get('note') or ''))
+              for p in pfull)
     rows.append(('A5', '四重逻辑',
                  '一致(passed)' if a5f else '?'))
     a6 = [i for i in issues if i.get('anchor') == 'A6']
@@ -361,6 +386,28 @@ def main():
     h0 = sha256_file(thesis)
     audit(thesis, proposal)
     check('正文哈希审计前后不变（只读）', sha256_file(thesis) == h0)
+
+    # ============================== 6 锚点档案缺失时的诚实性（关键，防"静默失效"）
+    section('6 锚点档案缺失/为空：一律「无法判定」，绝不编造一致或差异')
+    empty = os.path.join(TMP, 'anchors-empty.yaml')
+    with open(empty, 'w', encoding='utf-8') as f:
+        f.write('case: "（空档案）"\n')
+    res0 = AUD.audit(thesis, proposal, verbose=False, anchors_path=empty)
+    i0 = [i for i in res0['issues'] if i.get('rule') != 'audit-internal-error']
+    fab = [i for i in i0 if i.get('conclusion') in ('缺失', '改动', '偏离')
+           and i.get('anchor') != 'A4']
+    check('空档案下不编造差异（只剩 A4 样本量这条通用数字检查）', not fab,
+          '多出来的差异：%s' % [(i.get('anchor'), i.get('conclusion')) for i in fab])
+    no_cfg = {'A2', 'A3', 'A5', 'A6'}
+    pending = {i.get('anchor') for i in i0 if i.get('conclusion') == '无法判定'}
+    passed_a = {p['anchor'] for p in res0['meta']['passed']}
+    check('未配置的锚点（A2/A3/A5/A6）全部落「无法判定」', no_cfg <= pending,
+          '未落无法判定：%s' % sorted(no_cfg - pending))
+    check('未配置的锚点没有一个被谎报成「一致」', not (no_cfg & passed_a),
+          '谎报一致：%s' % sorted(no_cfg & passed_a))
+    check('meta.notes 里写明锚点档案来源/缺失',
+          any('锚点档案' in str(n) for n in res0['meta']['notes']),
+          'notes=%s' % res0['meta']['notes'][:2])
 
     # ================================================================== 收尾
     print('\n' + '=' * 62)

@@ -43,7 +43,7 @@ try:
     from docx.oxml.ns import qn
 except ImportError:
     sys.stderr.write("需要 python-docx：\n"
-                     '  "C:/Users/Tian/.workbuddy/binaries/python/envs/default'
+                     '  "<python 虚拟环境>'
                      '/Scripts/python.exe" -m pip install python-docx\n')
     raise
 

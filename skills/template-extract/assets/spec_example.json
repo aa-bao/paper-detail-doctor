@@ -2,7 +2,7 @@
   "meta": {
     "template_name": "本科生毕业论文（设计）格式",
     "source": {
-      "path": "F:/Coding/work/0813-城市家庭/template",
+      "path": "<模板来源目录，例如 D:/论文/template>",
       "kind": "images",
       "pages": 14,
       "note": "p1-p3 为文字规范（文字可直接读），p4-p14 为排版样张（走视觉分析）；两者互补"

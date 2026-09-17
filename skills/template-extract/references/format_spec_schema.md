@@ -179,7 +179,7 @@ Format Spec 是整个 skill 的**中间产物**：提取的结果先落成它，
   "header": {
     "content": "paper-title",         // paper-title | custom | none
     "content_confidence": "high",     // ★ 判纸页眉写什么：low 时必须问用户
-    "text": "\"墙里墙外\"：城市家庭代际关系的情感逻辑",
+    "text": "（论文题目）",
     "found_in_body": true,            // 页眉文字是否在正文里出现（用于判 content）
     "rule": true,                     // ★ 页眉要不要横线
     "rule_detail": {"style": "single", "size_pt": 0.5, "space_pt": 1.0},

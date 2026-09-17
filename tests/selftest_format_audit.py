@@ -19,7 +19,7 @@ tests/selftest_format_audit.py —— format-audit（L1）的**注入式**验收
 
 怎么跑
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/selftest_format_audit.py
+    "python" tests/selftest_format_audit.py
 """
 import importlib.util
 import os
@@ -30,13 +30,15 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)
+sys.path.insert(0, HERE)   # 让 tests/_sample.py 可被 import
 
 from shared.lib.docx_ops import Doc, W                       # noqa: E402
 from shared.lib.docx_scan import norm                        # noqa: E402
 from shared.lib.report import validate_issue                 # noqa: E402
 from shared.lib.docx_ops import ACTIONS                      # noqa: E402
 
-DEFAULT_SAMPLE = r'F:\Coding\work\0813-城市家庭\初稿.docx'
+from _sample import thesis as _sample_thesis, missing_hint as _missing_hint   # noqa: E402
+DEFAULT_SAMPLE = _sample_thesis()
 TMP = tempfile.mkdtemp(prefix='pdd-fmt-selftest-')
 
 _ok, _fail, _notes = 0, 0, []
@@ -171,8 +173,9 @@ def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SAMPLE
     global AUD
     AUD = load_audit_mod()
-    if not os.path.exists(src):
+    if not src or not os.path.exists(src):
         print('样本不存在：%s' % src)
+        print(_missing_hint())
         return 2
     print('样本：%s\n临时目录：%s' % (src, TMP))
 

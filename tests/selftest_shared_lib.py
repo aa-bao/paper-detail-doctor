@@ -13,7 +13,7 @@ tests/selftest_shared_lib.py —— 共享层自检（docx_scan / docx_ops / oox
 
 怎么跑（**在文档副本上跑，不动你的原稿**）
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/selftest_shared_lib.py
+    "python" tests/selftest_shared_lib.py
     # 想换样本：... tests/selftest_shared_lib.py "D:/其他.docx"
 """
 import os
@@ -25,6 +25,7 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)
+sys.path.insert(0, HERE)   # 让 tests/_sample.py 可被 import
 
 from shared.lib.docx_scan import Scanner, norm                     # noqa: E402
 from shared.lib.docx_ops import (                                  # noqa: E402
@@ -34,7 +35,8 @@ from shared.lib.ooxml_guard import (                               # noqa: E402
     SnapshotManager, apply_plan, is_locked, sha256_file,
 )
 
-DEFAULT_SAMPLE = r'F:\Coding\work\0813-城市家庭\初稿.docx'
+from _sample import thesis as _sample_thesis, missing_hint as _missing_hint   # noqa: E402
+DEFAULT_SAMPLE = _sample_thesis()
 
 _ok, _fail, _notes = 0, 0, []
 
@@ -56,8 +58,9 @@ def section(t):
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SAMPLE
-    if not os.path.exists(src):
+    if not src or not os.path.exists(src):
         print('样本不存在：%s' % src)
+        print(_missing_hint())
         return 2
     if is_locked(src):
         print('样本正被 WPS/Word 独占，先关掉：%s' % src)

@@ -39,7 +39,7 @@ try:
 except ImportError:
     raise SystemExit(
         "需要 python-docx。用模板提取那个 venv 跑：\n"
-        '  "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe"'
+        '  "python"'
     )
 
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
@@ -57,7 +57,7 @@ TOC_HEADINGS = {'目录', '目次', 'contents'}
 SENTENCE_END = '。！？!?'
 CLAUSE_PUNCT = '；，、：,;:）)】」”'
 # 引注**紧跟其后**即视为位置违规的分隔符。
-# 刻意不含 `）】」”` 这类收尾符：`……"墙里墙外"[1]` 里引注跟在引号后完全正常，
+# 刻意不含 `）】」”` 这类收尾符：`……"某句话"[1]` 里引注跟在引号后完全正常，
 # 把它们算进来会造成一片误报。只收真正的分句/分列符。
 PUNCT_BEFORE = '。！？；，、：!?,;:'
 

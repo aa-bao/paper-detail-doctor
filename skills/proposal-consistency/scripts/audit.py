@@ -18,13 +18,22 @@ skills/proposal-consistency/scripts/audit.py —— 开题报告 ↔ 正文 一�
     ★ 本脚本里没有 LLM。L2 的"语义等价"判定权在设计上就交给宿主 agent，
       脚本只负责"把证据摆齐"（§5.6 第 4 条：最终裁定权在人和导师）。
 
+锚点档案（为什么必须外置）
+    七类锚点 A1–A7 的**检查逻辑是通用的**；但"题眼是哪个词、点了哪些核心概念、
+    引了哪些理论家、方法要素有哪些、大纲里哪一章被并了节"——这些是**某一篇论文
+    的数据**，不是这个工具的知识。所以它们放在锚点档案 YAML 里
+    （模板 assets/anchors.example.yaml），由使用者或宿主 agent 填。
+    写死在代码里就等于只对一篇论文有效。
+    未配置的锚点**一律产出「无法判定」交人工**，绝不静默判成一致。
+
 开题报告的特殊性
-    本项目开题报告正文全部装在一个大表格里，按普通段落读几乎读不到东西。
+    开题报告正文常常整个装在一个大表格里，按普通段落读几乎读不到东西。
     脚本自己遍历 w:tbl → w:tr → w:tc → w:p → w:t 把表格文本抽出来，
     因此对任意"开题报告也是个 docx"的用户都可复用。
 
 用法
-    python audit.py -d <正文.docx> -p <开题报告.docx> [-o <产物目录>] [--json] [--print]
+    python audit.py -d <正文.docx> -p <开题报告.docx> \\
+        [-o <产物目录>] [--anchors <锚点档案.yaml>] [--json] [--print]
     缺少 -p 时明确报错退出（双文档核对必须给 -p），不假装跑成功。
 """
 import argparse
@@ -186,9 +195,14 @@ def para_index_by_keyword(docx, keyword):
 
 # ================================================================ 数值抽取
 
-def extract_planned_sample(text):
+def extract_planned_sample(text, anchor=None):
     """开题计划样本量：锚定『计划访谈…人』，支持 '30-40人' 与 '15人' 两种写法。
-    返回 (lo, hi)；单值则 lo==hi；找不到返回 None。"""
+    anchor 可由锚点档案覆盖（不同课题的措辞不同）。返回 (lo, hi)；单值则 lo==hi；找不到返回 None。"""
+    if anchor:
+        m = re.search(re.escape(anchor) + r'\s*(\d+)\s*(?:[-–—]\s*(\d+))?\s*人', text)
+        if m:
+            a = int(m.group(1))
+            return (a, int(m.group(2)) if m.group(2) else a)
     m = re.search(r'计划访谈\s*(\d+)\s*(?:[-–—]\s*(\d+))?\s*人', text)
     if not m:
         m = re.search(r'拟访谈\s*(\d+)\s*(?:[-–—]\s*(\d+))?\s*人', text)
@@ -199,8 +213,12 @@ def extract_planned_sample(text):
     return (a, b)
 
 
-def extract_actual_sample(text):
-    """正文实际完成样本量：锚定『完成访谈…人』。返回整数或 None。"""
+def extract_actual_sample(text, anchor=None):
+    """正文实际完成样本量：锚定『完成访谈…人』（anchor 可由锚点档案覆盖）。返回整数或 None。"""
+    if anchor:
+        m = re.search(re.escape(anchor) + r'\s*(\d+)\s*人', text)
+        if m:
+            return int(m.group(1))
     m = re.search(r'完成访谈\s*(\d+)\s*人', text)
     if m:
         return int(m.group(1))
@@ -284,6 +302,110 @@ class Builder:
             verdict='待判', confidence=None, judgment_question=question,
             suggestion='L2 语义等价：宿主 agent 判 等价/不等价/无法判定；置信度 <0.7 一律归 无法判定。')
 
+    def mark_unconfigured(self, anchor, what):
+        """锚点未配置 → 报「无法判定」交人工。
+
+        **绝不静默跳过** —— 跳过会被读成"这一项没问题"，正是本包最警惕的静默失效
+        （"检查器没跑"伪装成"全部合格"）。未配置 ≠ 一致。
+        """
+        self.add(anchor=anchor, conclusion='无法判定', layer='L1',
+                 expected='该锚点应在锚点档案（anchors.yaml）中配置',
+                 actual=what,
+                 verdict='待判', confidence=None,
+                 judgment_question='请人工核对这一项；或按 assets/anchors.example.yaml '
+                                   '补配置后重跑。',
+                 suggestion='未配置 ≠ 一致。补上 %s 的锚点配置后重跑。' % anchor)
+
+
+# ================================================================ 锚点档案
+
+class Anchors:
+    r"""锚点档案：把"从开题里抽哪些锚点、回正文哪里找"从代码里搬出来。
+
+    本 skill 的**检查逻辑是通用的**（七类锚点 A1–A7 × 三层判定），但每篇论文的
+    具体锚点值不同：题眼是什么、点了哪些核心概念、引了哪些理论家、方法要素有
+    哪些、大纲里哪一章被并了节……这些**属于那篇论文的数据，不属于这个工具**。
+    所以它们放在 YAML 里（见 assets/anchors.example.yaml），而不是写死在代码里。
+
+    解析顺序（先命中者胜）：
+      1. 命令行 --anchors <file>
+      2. 环境变量 PDD_ANCHORS
+      3. <正文 docx 同目录>/.thesis-doctor/anchors.yaml
+      4. <包根>/assets/anchors.local.yaml
+
+    一个都没命中时 self.data 为空 —— 各锚点会走"未配置"分支，**一律产出
+    「无法判定」并说明原因**，交人工/宿主 agent，**绝不静默判成一致**
+    （否则就是"检查器坏了伪装成全部合格"）。
+    """
+
+    SECTIONS = ('A1_topic', 'A2_concept', 'A3_theory', 'A4_method',
+                'A5_outline', 'A6_conclusion', 'A7_refs')
+
+    def __init__(self, path=None, docx=None):
+        self.data = {}
+        self.source = None
+        cands = []
+        if path:
+            cands.append(path)
+        if os.environ.get('PDD_ANCHORS'):
+            cands.append(os.environ['PDD_ANCHORS'])
+        if docx:
+            cands.append(os.path.join(os.path.dirname(os.path.abspath(docx)),
+                                      '.thesis-doctor', 'anchors.yaml'))
+        cands.append(os.path.join(PKG, 'assets', 'anchors.local.yaml'))
+        for c in cands:
+            if c and os.path.exists(c):
+                try:
+                    import yaml
+                    with open(c, encoding='utf-8') as f:
+                        d = yaml.safe_load(f) or {}
+                    if isinstance(d, dict):
+                        self.data = d
+                        self.source = os.path.abspath(c)
+                        break
+                except Exception:
+                    continue
+
+    # ---------------------------------------------------------------- 取用
+    def sec(self, key):
+        v = self.data.get(key)
+        return v if isinstance(v, dict) else {}
+
+    def toks(self, key):
+        v = self.sec(key).get('tokens')
+        if isinstance(v, str):
+            v = [v]
+        return [str(t).strip() for t in (v or []) if str(t).strip()]
+
+    def val(self, key, field, default=''):
+        v = self.sec(key).get(field)
+        return v if isinstance(v, str) and v.strip() else default
+
+    def lst(self, key, field):
+        v = self.sec(key).get(field)
+        if isinstance(v, str):
+            v = [v]
+        return [str(t).strip() for t in (v or []) if str(t).strip()]
+
+    def configured(self, key):
+        return bool(self.sec(key))
+
+    def note(self):
+        if self.source:
+            return '锚点档案：%s' % self.source
+        return ('未找到锚点档案（anchors.yaml）—— 仅 A7 文献承诺与样本量数字可自动判定，'
+                '其余锚点一律报「无法判定」交人工。配置方法见 assets/anchors.example.yaml。')
+
+    # -------------------------------------------------- A1 题眼（无配置时自动猜）
+    def a1_tokens(self, prop_text):
+        t = self.toks('A1_topic')
+        if t:
+            return t, 'configured'
+        m = re.search(r'《([^》]{4,60})》', prop_text)
+        if m:
+            return [m.group(1).strip()], 'auto'
+        return [], 'none'
+
 
 # ================================================================ 各锚点核对
 
@@ -294,67 +416,115 @@ def _heading_index(headings, keyword, level=None):
     return None, None
 
 
-def check_A1_title(b, prop_text, thesis_text):
-    """A1 题目（L1 字面）：双向命中题眼关键词 → 一致。"""
-    tok = '墙里墙外'
-    if tok in prop_text and tok in thesis_text:
-        b.mark_passed('A1', '题目一致', '双向命中题眼「%s」' % tok)
+def check_A1_title(b, prop_text, thesis_text, A):
+    """A1 题目（L1 字面）：双向命中题眼关键词 → 一致。
+
+    题眼是"这篇论文独有"的数据，必须外置到锚点档案 —— 写死在代码里就只对
+    一篇论文有效。未配置时退化为"从开题里找《…》"，再找不到就报无法判定。
+    """
+    toks, how = A.a1_tokens(prop_text)
+    if not toks:
+        b.add(anchor='A1', conclusion='无法判定', layer='L1',
+              expected='题目在开题与正文中应一致',
+              actual='锚点档案未配置 A1_topic.tokens，且开题里找不到《…》形式的题目',
+              proposal_excerpt=prop_text[:60], thesis_excerpt=None,
+              verdict='待判', confidence=None,
+              judgment_question='请人工核对开题与正文的题目是否一致，或补 A1_topic.tokens。',
+              suggestion='在锚点档案中补 A1_topic.tokens（题眼关键词，2–6 字的独特词）。')
+        return
+    hit = [t for t in toks if t in prop_text and t in thesis_text]
+    if len(hit) == len(toks):
+        b.mark_passed('A1', '题目一致',
+                      '双向命中题眼「%s」%s'
+                      % ('、'.join(toks), '（自动取自开题《…》）' if how == 'auto' else ''))
     else:
-        miss = '开题' if tok not in prop_text else '正文'
-        b.add(anchor='A1', conclusion='缺失' if tok not in prop_text else '偏离',
+        lost_prop = [t for t in toks if t not in prop_text]
+        lost = lost_prop or [t for t in toks if t not in thesis_text]
+        b.add(anchor='A1', conclusion='缺失' if lost_prop else '偏离',
               layer='L1',
               expected='题目在开题与正文中应一致',
-              actual='「%s」仅出现在%s' % (tok, miss),
-              proposal_excerpt=(prop_text[:40] if tok in prop_text else None),
-              thesis_excerpt=(thesis_text[:40] if tok in thesis_text else None),
+              actual='题眼「%s」未在%s出现' % ('、'.join(lost), '开题' if lost_prop else '正文'),
+              proposal_excerpt=_snippet(prop_text, toks[0]),
+              thesis_excerpt=_snippet(thesis_text, toks[0]),
               suggestion='核对题目是否被改写，必要时统一。')
 
 
-def check_A2_concept(b, prop_text, thesis_text, thesis_headings):
+def check_A2_concept(b, prop_text, thesis_text, thesis_headings, A):
     """A2 核心概念/关键词（L1 + L2）：脚本摆齐两侧摘录，语义等价交宿主判定。"""
-    # 概念命中（作为一致证据，但不下最终结论）
-    present = all(k in prop_text and k in thesis_text
-                 for k in ['家庭情感共同体', '代际情感资源分配'])
-    q = ('开题的“家庭情感共同体 / 代际情感资源分配 / 三维情感构成”与正文 1.4 节的概念界定'
-         '是否语义等价？请判 等价 / 不等价 / 无法判定（置信度 <0.7 归 无法判定）。')
-    pe = _snippet(prop_text, '家庭情感共同体')
-    te_idx, te = _heading_index(thesis_headings, '核心概念与理论基础')
-    b.mark_l2_pending('A2', pe, te or _snippet(thesis_text, '家庭情感共同体'), q,
-                      thesis_loc=te_idx)
+    toks = A.toks('A2_concept')
+    head = A.val('A2_concept', 'thesis_heading')
+    if not toks and not head:
+        b.add(anchor='A2', conclusion='无法判定', layer='L2',
+              expected='开题点名的核心概念应在正文有对应界定',
+              actual='锚点档案未配置 A2_concept，抽不出概念锚点',
+              proposal_excerpt=prop_text[:60], thesis_excerpt=None,
+              verdict='待判', confidence=None,
+              judgment_question='请人工核对开题的核心概念在正文哪一节界定、是否语义等价。',
+              suggestion='在锚点档案中补 A2_concept.tokens 与 thesis_heading。')
+        return
+    both = [t for t in toks if t in prop_text and t in thesis_text]
+    anchor_tok = (both or toks or [''])[0]
+    q = ('开题的核心概念%s与正文「%s」一节的概念界定是否语义等价？'
+         '请判 等价 / 不等价 / 无法判定（置信度 <0.7 归 无法判定）。'
+         % ('（%s）' % ' / '.join(toks) if toks else '', head or '未指定'))
+    te_idx, te = _heading_index(thesis_headings, head) if head else (None, None)
+    b.mark_l2_pending('A2', _snippet(prop_text, anchor_tok),
+                      te or _snippet(thesis_text, anchor_tok), q, thesis_loc=te_idx)
 
 
-def check_A3_theory(b, prop_text, thesis_text, thesis_headings):
+def check_A3_theory(b, prop_text, thesis_text, thesis_headings, A):
     """A3 理论基础与学者（L1 + L2）：摆齐两侧理论清单，语义等价交宿主判定。"""
-    q = ('开题的“特纳情感唤起论 + 霍克希尔德情感劳动 + Glick 家庭生命周期”'
-         '与正文 1.4.2 理论基础是否语义等价？判 等价 / 不等价 / 无法判定。')
-    pe = _snippet(prop_text, '特纳')
-    te_idx, te = _heading_index(thesis_headings, '理论基础')
-    b.mark_l2_pending('A3', pe, te or _snippet(thesis_text, '霍克希尔德'), q,
-                      thesis_loc=te_idx)
+    toks = A.toks('A3_theory')
+    head = A.val('A3_theory', 'thesis_heading')
+    if not toks and not head:
+        b.add(anchor='A3', conclusion='无法判定', layer='L2',
+              expected='开题所列理论基础应在正文有对应论述',
+              actual='锚点档案未配置 A3_theory，抽不出理论锚点',
+              proposal_excerpt=prop_text[:60], thesis_excerpt=None,
+              verdict='待判', confidence=None,
+              judgment_question='请人工核对开题的理论基础与正文对应章节是否语义等价。',
+              suggestion='在锚点档案中补 A3_theory.tokens（理论/学者名）与 thesis_heading。')
+        return
+    both = [t for t in toks if t in prop_text and t in thesis_text]
+    anchor_tok = (both or toks or [''])[0]
+    q = ('开题的理论基础%s与正文「%s」是否语义等价？'
+         '判 等价 / 不等价 / 无法判定（置信度 <0.7 归 无法判定）。'
+         % ('（%s）' % ' + '.join(toks) if toks else '', head or '未指定'))
+    te_idx, te = _heading_index(thesis_headings, head) if head else (None, None)
+    b.mark_l2_pending('A3', _snippet(prop_text, anchor_tok),
+                      te or _snippet(thesis_text, anchor_tok), q, thesis_loc=te_idx)
 
 
-def check_A4_method(b, prop_text, thesis_text, thesis_text_full):
+def check_A4_method(b, prop_text, thesis_text, thesis_text_full, A):
     """A4 研究方法要素（L1 数字为主）：
-       · 方法/对象/地点一致性 → 进通过清单；
-       · 样本量 30—40 → 15 的变动 → 改动（warn）。"""
-    method_kw = ['访谈', '观察', '幼儿园', '养老院']
-    ok = all(k in prop_text for k in method_kw) and all(k in thesis_text for k in method_kw)
-    if ok:
-        b.mark_passed('A4', '方法要素一致',
-                      '访谈法/观察法/幼儿园家长(P)/养老院老人(E)/子女(C) 双向命中')
+       · 方法/对象/地点一致性 → 进通过清单（锚词来自锚点档案）；
+       · 样本量「开题计划 N–M 人 → 正文实际 K 人」→ 改动（warn）。
+    未配置 A4_method 时**不跳过、也不判一致**，而是报「无法判定」交人工。"""
+    method_kw = A.toks('A4_method')
+    if method_kw:
+        ok = all(k in prop_text for k in method_kw) and all(k in thesis_text for k in method_kw)
+        if ok:
+            b.mark_passed('A4', '方法要素一致', '方法要素双向命中：%s' % '、'.join(method_kw))
+        else:
+            miss = [k for k in method_kw if k not in prop_text or k not in thesis_text]
+            b.add(anchor='A4', conclusion='缺失' if any(k not in prop_text for k in miss) else '偏离',
+                  layer='L1',
+                  expected='开题所列研究方法要素应在正文出现',
+                  actual='方法要素缺失：%s' % '、'.join(miss),
+                  proposal_excerpt=_snippet(prop_text, method_kw[0]),
+                  thesis_excerpt=_snippet(thesis_text, method_kw[0]),
+                  suggestion='核对研究方法节是否覆盖开题承诺的方法。')
     else:
-        miss = [k for k in method_kw if k not in prop_text or k not in thesis_text]
-        b.add(anchor='A4', conclusion='缺失' if any(k not in prop_text for k in miss) else '偏离',
-              layer='L1',
-              expected='开题所列研究方法要素应在正文出现',
-              actual='方法要素缺失：%s' % '、'.join(miss),
-              proposal_excerpt=_snippet(prop_text, '访谈'),
-              thesis_excerpt=_snippet(thesis_text, '访谈'),
-              suggestion='核对研究方法节（正文 1.5.1）是否覆盖开题承诺的方法。')
+        b.mark_unconfigured('A4', '方法要素一致性未检查：锚点档案未配置 A4_method.tokens')
 
-    # —— 样本量（A4-03）——
-    planned = extract_planned_sample(prop_text)
-    actual = extract_actual_sample(thesis_text_full)
+    plan_word = A.val('A4_method', 'plan_anchor') or None
+    actual_word = A.val('A4_method', 'actual_anchor') or None
+    pe_word = plan_word or '计划访谈'
+    te_word = actual_word or '完成访谈'
+
+    # —— 样本量（A4 数字）——
+    planned = extract_planned_sample(prop_text, plan_word)
+    actual = extract_actual_sample(thesis_text_full, actual_word)
     obs = extract_observations(thesis_text_full)
     if planned and actual is not None:
         lo, hi = planned
@@ -362,13 +532,13 @@ def check_A4_method(b, prop_text, thesis_text, thesis_text_full):
             b.mark_passed('A4', '样本量一致',
                           '开题计划 %d–%d 人，正文实际 %d 人（在计划区间内）' % (lo, hi, actual))
         else:
-            pe = _snippet(prop_text, '计划访谈')
-            te_idx = para_index_by_keyword(_thesis_path_holder[0], '完成访谈') if _thesis_path_holder else None
+            pe = _snippet(prop_text, pe_word)
+            te_idx = para_index_by_keyword(_thesis_path_holder[0], te_word) if _thesis_path_holder else None
             if te_idx:
                 para = Scanner(_thesis_path_holder[0]).para_text(te_idx)
-                te = _snippet(para, '完成访谈')
+                te = _snippet(para, te_word)
             else:
-                te = _snippet(thesis_text_full, '完成访谈')
+                te = _snippet(thesis_text_full, te_word)
             b.add(anchor='A4', conclusion='改动', layer='L1',
                   expected='开题计划访谈 %d–%d 人' % (lo, hi),
                   actual='正文实际完成访谈 %d 人%s' % (
@@ -376,92 +546,136 @@ def check_A4_method(b, prop_text, thesis_text, thesis_text_full):
                   proposal_excerpt=pe, thesis_excerpt=te,
                   location_index=te_idx, location_excerpt=te,
                   suggestion='答辩准备“为何从 %d–%d 收缩到 %d”的说明；'
-                             '确认 1.5.1 已写明抽样标准与饱和判断。' % (lo, hi, actual))
+                             '确认研究方法节已写明抽样标准与饱和判断。' % (lo, hi, actual))
     elif planned is None or actual is None:
-        # 数字抽不出来 → 无法判定，交人
+        # 数字抽不出来 → 无法判定，交人（不许当成"一致"）
         b.add(anchor='A4', conclusion='无法判定', layer='L1',
-              expected='开题计划样本量', actual='未能从文档稳定抽取样本量数字',
-              proposal_excerpt=_snippet(prop_text, '访谈'),
-              thesis_excerpt=_snippet(thesis_text_full, '访谈'),
+              expected='开题计划样本量',
+              actual='未能稳定抽取样本量数字（开题锚词「%s」/ 正文锚词「%s」）' % (pe_word, te_word),
+              proposal_excerpt=_snippet(prop_text, pe_word),
+              thesis_excerpt=_snippet(thesis_text_full, te_word),
               verdict='待判', confidence=None,
-              judgment_question='请人工核对开题与正文的样本量数字是否一致。',
+              judgment_question='请人工核对开题与正文的样本量数字是否一致。'
+                                '若措辞不同，请在锚点档案里改 A4_method.plan_anchor / actual_anchor。',
               suggestion='样本量为关键差异点，请人工确认。')
 
 
-def check_A5_outline(b, prop_text, thesis_text, outline, thesis_headings):
-    """A5 章节大纲（L3 结构）：三个预定义结构性锚点，逐条内容比对。"""
-    # 四重逻辑（一致，进通过清单）
-    four = ['结构逻辑', '时代逻辑', '分工逻辑', '本质逻辑']
-    thesis_four = all(any(t in h['text'] for h in thesis_headings) for t in four)
-    prop_four = all(any(t in it['text'] for it in outline) for t in four)
-    if thesis_four and prop_four:
-        b.mark_passed('A5', '四重逻辑一致', '结构/时代/分工/本质 逻辑在双方同名对应（正文 3.1–3.4）')
+def check_A5_outline(b, prop_text, thesis_text, outline, thesis_headings, A):
+    """A5 章节大纲（L3 结构）：结构性锚点逐条比对。
 
-    # —— A5-01 改动：开题独立章『作为情感共同体的家庭』并入正文 1.4 ——
-    merged = next((it for it in outline if it['level'] == 1
-                   and '作为情感共同体的家庭' in it['text']), None)
-    if merged:
-        thesis_has_chapter = any('作为情感共同体的家庭' in h['text']
-                                for h in thesis_headings if h['level'] == 1)
-        if not thesis_has_chapter:
-            # 取开题该章及其子目作为摘录
-            pe = merged['raw']
-            te_idx, te = _heading_index(thesis_headings, '核心概念与理论基础')
+    三类结构性差异各自需要锚点档案说明"看哪里"（见 assets/anchors.example.yaml）：
+      · 并章（改动）  merged_chapter 在开题是一级章、正文无同名一级章
+      · 新增小节（偏离）extra_tokens 出现在正文 chapter_heading 章下，但开题大纲没有
+      · 大纲条目缺失（缺失）missing_section 在开题大纲里、正文无对应标题
+    一项都没配置时报「无法判定」—— 未配置不等于一致。
+    """
+    n_prop = len([it for it in outline if it.get('level') == 1])
+    n_thesis = len([h for h in thesis_headings if h.get('level') == 1])
+
+    # —— 双方应同名出现的结构性标签（一致证据）——
+    tags = A.lst('A5_outline', 'expect_passed')
+    if tags:
+        thesis_ok = all(any(t in h['text'] for h in thesis_headings) for t in tags)
+        prop_ok = all(any(t in it['text'] for it in outline) for t in tags)
+        if thesis_ok and prop_ok:
+            label = A.val('A5_outline', 'expect_passed_label') or '大纲同名标签一致'
+            b.mark_passed('A5', label,
+                          '「%s」在开题与正文同名对应' % '、'.join(tags))
+
+    handled = 0
+
+    # —— 改动：开题独立章在正文被并成节 ——
+    merged_ch = A.val('A5_outline', 'merged_chapter')
+    if merged_ch:
+        handled += 1
+        m = next((it for it in outline
+                  if it.get('level') == 1 and merged_ch in it['text']), None)
+        is_chapter_in_thesis = any(merged_ch in h['text']
+                                   for h in thesis_headings if h.get('level') == 1)
+        if m and not is_chapter_in_thesis:
+            target = A.val('A5_outline', 'merged_target')
+            te_idx, te = (_heading_index(thesis_headings, target) if target
+                          else (None, None))
             if te_idx is None:
-                te_idx, te = _heading_index(thesis_headings, '作为情感共同体的家庭')
+                te_idx, te = _heading_index(thesis_headings, merged_ch)
             b.add(anchor='A5', conclusion='改动', layer='L3',
-                  expected='开题大纲含独立章「三、作为情感共同体的家庭」',
-                  actual='正文无同名一级章，已并入 1.4 核心概念与理论基础（六章→五章）',
-                  proposal_excerpt=pe, thesis_excerpt=te,
+                  expected='开题大纲有独立章「%s」（开题一级章共 %d 个）'
+                           % (merged_ch, n_prop),
+                  actual='正文无同名一级章，已并入%s（正文一级章共 %d 个）'
+                         % (('「%s」' % target) if target else '正文某一节', n_thesis),
+                  proposal_excerpt=m.get('raw'), thesis_excerpt=te,
                   location_index=te_idx, location_excerpt=te,
-                  suggestion='答辩说明“第三章并入 1.4”的体例调整理由，属自洽改动。')
+                  suggestion='答辩说明“该章并入”的体例调整理由，属自洽改动。')
 
-    # —— A5-02 偏离：正文第 2 章超出开题三阶段，新增 2.4/2.5 ——
-    extra_toks = ['祖辈接棒', '隔代照料', '收缩阶段']
-    # 正文第 2 章的二级标题
-    ch2_idx, _ = _heading_index(thesis_headings, '代际情感资源分配的现状', level=1)
-    extra_secs = []
-    if ch2_idx:
-        nxt = next((h['index'] for h in thesis_headings
-                    if h['level'] == 1 and h['index'] > ch2_idx), 10 ** 9)
-        extra_secs = [h for h in thesis_headings
-                      if h['level'] == 2 and ch2_idx < h['index'] < nxt
-                      and any(t in h['text'] for t in extra_toks)]
-    prop_has = any(any(t in it['text'] for t in extra_toks) for it in outline)
-    if extra_secs and not prop_has:
-        first = extra_secs[0]
-        b.add(anchor='A5', conclusion='偏离', layer='L3',
-              expected='开题第 2 章仅三阶段（未婚/新婚无子女/婚后有子女）',
-              actual='正文第 2 章新增：%s' % '、'.join(h['text'] for h in extra_secs),
-              proposal_excerpt=_snippet(_outline_text_holder[0], '婚后有子女阶段'),
-              thesis_excerpt=first['text'],
-              location_index=first['index'], location_excerpt=first['text'],
-              suggestion='与家庭生命周期框架自洽，属合理扩充；答辩可简要说明新增依据。')
+    # —— 偏离：正文新增小节，开题大纲里没有 ——
+    extra_toks = A.lst('A5_outline', 'extra_tokens')
+    ch_head = A.val('A5_outline', 'chapter_heading')
+    if extra_toks and ch_head:
+        handled += 1
+        ch_idx, _ = _heading_index(thesis_headings, ch_head, level=1)
+        extra_secs = []
+        if ch_idx:
+            nxt = next((h['index'] for h in thesis_headings
+                        if h.get('level') == 1 and h['index'] > ch_idx), 10 ** 9)
+            extra_secs = [h for h in thesis_headings
+                          if h.get('level') == 2 and ch_idx < h['index'] < nxt
+                          and any(t in h['text'] for t in extra_toks)]
+        prop_has = any(any(t in it['text'] for t in extra_toks) for it in outline)
+        if extra_secs and not prop_has:
+            first = extra_secs[0]
+            ot = extra_toks[0]
+            b.add(anchor='A5', conclusion='偏离', layer='L3',
+                  expected='开题大纲「%s」章下不含这些小节' % ch_head,
+                  actual='正文「%s」章新增：%s'
+                         % (ch_head, '、'.join(h['text'] for h in extra_secs)),
+                  proposal_excerpt=(_snippet(_outline_text_holder[0], ot)
+                                    if ot in _outline_text_holder[0] else None),
+                  thesis_excerpt=first['text'],
+                  location_index=first['index'], location_excerpt=first['text'],
+                  suggestion='与正文框架自洽的合理扩充；答辩可简要说明新增依据。')
 
-    # —— A5-03 缺失：开题第四章有『重点案例分析』，正文不设个案专节 ——
-    prop_cs = next((it for it in outline if '重点案例分析' in it['text']), None)
-    if prop_cs:
-        thesis_has = any('重点案例分析' in h['text'] for h in thesis_headings)
-        if not thesis_has:
-            te_idx, te = _heading_index(thesis_headings, '情感分配不对称的后果')
-            if te_idx is None:
-                te_idx, te = _heading_index(thesis_headings, '代际情感', level=1)
+    # —— 缺失：开题大纲条目在正文无对应标题 ——
+    miss_sec = A.val('A5_outline', 'missing_section')
+    if miss_sec:
+        handled += 1
+        item = next((it for it in outline if miss_sec in it['text']), None)
+        if item and not any(miss_sec in h['text'] for h in thesis_headings):
+            te_idx, te = None, None
+            for fb in A.lst('A5_outline', 'missing_fallback'):
+                te_idx, te = _heading_index(thesis_headings, fb)
+                if te_idx:
+                    break
             b.add(anchor='A5', conclusion='缺失', layer='L3',
-                  expected='开题大纲第四章含「（四）重点案例分析」专节',
-                  actual='正文无“重点案例分析”个案专节（此前已定的体例决定）',
-                  proposal_excerpt=prop_cs['raw'], thesis_excerpt=te,
+                  expected='开题大纲含「%s」' % miss_sec,
+                  actual='正文无同名标题（该分析环节未落地）',
+                  proposal_excerpt=item.get('raw'), thesis_excerpt=te,
                   location_index=te_idx, location_excerpt=te,
-                  suggestion='最易被问；准备“为何不设个案专节”的说明，或补写专节。')
+                  suggestion='最易被问；准备“为何不设该环节”的说明，或补写。')
+
+    if handled == 0:
+        b.mark_unconfigured('A5', '大纲结构性差异未检查：锚点档案未配置 A5_outline')
 
 
-def check_A6_conclusion(b, prop_text, thesis_text, thesis_headings):
+def check_A6_conclusion(b, prop_text, thesis_text, thesis_headings, A):
     """A6 预期结论/研究假设（L2 语义）：摆齐两侧核心论断，交宿主判定。"""
-    q = ('开题核心论断“并非孝道衰落或代际剥削，而是常态化适应策略”'
-         '与正文 3.4 本质逻辑是否语义等价？判 等价 / 不等价 / 无法判定。')
-    pe = _snippet(prop_text, '常态适应策略')
-    te_idx, te = _heading_index(thesis_headings, '本质逻辑')
-    b.mark_l2_pending('A6', pe, te or _snippet(thesis_text, '常态化适应策略'), q,
-                      thesis_loc=te_idx)
+    tok = A.val('A6_conclusion', 'proposal_token')
+    head = A.val('A6_conclusion', 'thesis_heading')
+    if not tok and not head:
+        b.add(anchor='A6', conclusion='无法判定', layer='L2',
+              expected='开题的核心论断应在正文结论处得到呼应',
+              actual='锚点档案未配置 A6_conclusion，抽不出结论锚点',
+              proposal_excerpt=prop_text[:60], thesis_excerpt=None,
+              verdict='待判', confidence=None,
+              judgment_question='请人工核对开题的核心论断与正文结论章是否语义等价。',
+              suggestion='在锚点档案中补 A6_conclusion.proposal_token 与 thesis_heading。')
+        return
+    q = ('开题的核心论断（锚词「%s」处）与正文「%s」是否语义等价？'
+         '判 等价 / 不等价 / 无法判定（置信度 <0.7 归 无法判定）。'
+         % (tok or '未指定', head or '未指定'))
+    pe = _snippet(prop_text, tok) if tok else prop_text[:60]
+    te_idx, te = _heading_index(thesis_headings, head) if head else (None, None)
+    b.mark_l2_pending('A6', pe, te or (tok and _snippet(thesis_text, tok)) or thesis_text[:60],
+                      q, thesis_loc=te_idx)
 
 
 def check_A7_refs(b, prop_text, thesis_docx):
@@ -499,12 +713,13 @@ _outline_text_holder = [None]
 
 # ================================================================ 主流程
 
-def audit(docx, proposal, out_dir=None, verbose=True):
+def audit(docx, proposal, out_dir=None, verbose=True, anchors_path=None):
     if not os.path.exists(docx):
         raise FileNotFoundError(docx)
     if not os.path.exists(proposal):
         raise FileNotFoundError(proposal)
 
+    A = Anchors(path=anchors_path, docx=docx)
     _thesis_path_holder[0] = docx
     prop_full = full_text(proposal, is_proposal=True)
     _outline_text_holder[0] = prop_full
@@ -514,12 +729,12 @@ def audit(docx, proposal, out_dir=None, verbose=True):
 
     b = Builder()
     try:
-        check_A1_title(b, prop_full, thesis_full)
-        check_A2_concept(b, prop_full, thesis_full, thesis_headings)
-        check_A3_theory(b, prop_full, thesis_full, thesis_headings)
-        check_A4_method(b, prop_full, thesis_full, thesis_full)
-        check_A5_outline(b, prop_full, thesis_full, outline, thesis_headings)
-        check_A6_conclusion(b, prop_full, thesis_full, thesis_headings)
+        check_A1_title(b, prop_full, thesis_full, A)
+        check_A2_concept(b, prop_full, thesis_full, thesis_headings, A)
+        check_A3_theory(b, prop_full, thesis_full, thesis_headings, A)
+        check_A4_method(b, prop_full, thesis_full, thesis_full, A)
+        check_A5_outline(b, prop_full, thesis_full, outline, thesis_headings, A)
+        check_A6_conclusion(b, prop_full, thesis_full, thesis_headings, A)
         check_A7_refs(b, prop_full, docx)
     except Exception as e:
         import traceback
@@ -556,10 +771,13 @@ def audit(docx, proposal, out_dir=None, verbose=True):
         'passed': b.passed,
         'pending_l2': b.pending_l2,
         'counts': counts,
+        'anchors': A.source or None,
         'notes': [
             '一致性核对只读，未修改任何文档；所有 issue 的 action 为 null。',
+            A.note(),
             'L2 语义等价不下结论：已输出 待判 证据卡，终裁交宿主 agent（等价/不等价/无法判定）。',
             '五类结论 → severity：缺失=error / 改动=warn / 偏离=warn / 无法判定=info；一致不产 issue。',
+            '锚点未配置一律产出「无法判定」交人工 —— 静默跳过会被误读成"这一项没问题"。',
         ],
     }
     summary = Scanner(docx).summary()
@@ -567,6 +785,7 @@ def audit(docx, proposal, out_dir=None, verbose=True):
     if verbose:
         print('[proposal-consistency] 正文=%s' % docx)
         print('  开题=%s' % proposal)
+        print('  锚点档案=%s' % (A.source or '（未找到 → 各锚点将报「无法判定」交人工）'))
         print('  差异 %d 处（缺失 %d / 改动 %d / 偏离 %d），无法判定 %d 处，一致 %d 处'
               % (counts['缺失'] + counts['改动'] + counts['偏离'],
                  counts['缺失'], counts['改动'], counts['偏离'],
@@ -666,6 +885,11 @@ def main():
     ap.add_argument('-d', '--docx', required=True, help='正文 docx（唯一真值源）')
     ap.add_argument('-p', '--proposal', default=None, help='开题报告 docx（双文档核对必需）')
     ap.add_argument('-o', '--out', default=None, help='产物目录')
+    ap.add_argument('--anchors', default=None,
+                    help='锚点档案 YAML：每篇论文不同的题眼/概念/理论/方法要素/大纲锚点。'
+                         '不给则依次找 环境变量 PDD_ANCHORS、'
+                         '<正文目录>/.thesis-doctor/anchors.yaml、assets/anchors.local.yaml；'
+                         '都没有则各锚点报「无法判定」交人工（模板见 assets/anchors.example.yaml）')
     ap.add_argument('--json', action='store_true', help='打印 JSON 到终端')
     ap.add_argument('--print', action='store_true', help='把报告打到终端')
     a = ap.parse_args()
@@ -679,7 +903,8 @@ def main():
     from workflow._common import audit_dir   # noqa: E402
     out_dir = a.out or audit_dir(a.docx, SKILL)
     try:
-        res = audit(a.docx, a.proposal, out_dir=out_dir, verbose=True)
+        res = audit(a.docx, a.proposal, out_dir=out_dir, verbose=True,
+                    anchors_path=a.anchors)
     except FileNotFoundError as e:
         sys.stderr.write('错误：文档不存在：%s\n' % e)
         return 2

@@ -26,7 +26,7 @@ tests/selftest_routing.py —— 路由可区分性自检
        已补 `out_of_scope` 段。
 
 用法
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/selftest_routing.py
+    "python" tests/selftest_routing.py
 """
 import os
 import re

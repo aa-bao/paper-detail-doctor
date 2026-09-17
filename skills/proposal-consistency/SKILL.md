@@ -49,6 +49,8 @@ metadata:
 ## 七类锚点（A1–A7）
 
 每类都预先定义"怎么抽、怎么找、怎么判"。下表是唯一权威定义，脚本照此实现。
+**表里说的是"哪一类锚点"；每篇论文的具体值（题眼、概念、理论家、方法要素、大纲锚点）
+在锚点档案 `anchors.yaml` 里**，见下一节。
 
 | 类 | 锚点 | 在开题哪里抽 | 在正文哪里找 | 判定层 | 落到结论 |
 |---|---|---|---|---|---|
@@ -65,6 +67,34 @@ metadata:
 - **L1 字面**：归一化（去空白/标点）后子串或数字严格匹配。全自动、结果确定可复核。数字不等 → **改动**。
 - **L2 语义**：同一命题两处表述是否等价。**本脚本不含 LLM**——它只负责把两侧原文、判定问题、置信度槽位摆齐，输出 `verdict=待判` + `confidence=null`，**终裁交宿主 agent**（见下节协议）。（§5.2 原稿设想用 LLM 判，但只读脚本不内嵌模型，改为人-in-the-loop，意图与 §5.6 第 4 条一致：裁定权在人和导师。）
 - **L3 结构**：大纲树 ↔ 实际标题树做覆盖矩阵。全自动。开题某节在正文无对应 → **缺失**。
+
+---
+
+## 锚点从哪来 —— 锚点档案 `anchors.yaml`（重要）
+
+上表的**检查逻辑是通用的**，但"题眼是哪个词、点了哪些核心概念、引了哪些理论家、
+方法要素有哪些、大纲里哪一章被并了节"——**这些是某一篇论文的数据，不是这个工具的知识**。
+所以它们外置在**锚点档案**里，由使用者（或宿主 agent 读一遍开题后）填写，**不写死在代码里**。
+
+档案位置按顺序查找，先命中者胜（模板见 `assets/anchors.example.yaml`）：
+
+1. 命令行 `--anchors <file>`
+2. 环境变量 `PDD_ANCHORS`
+3. `<正文 docx 同目录>/.thesis-doctor/anchors.yaml`
+4. `<包根>/assets/anchors.local.yaml`（`*.local.yaml` 已被 `.gitignore` 忽略）
+
+档案里对应上表的七段：`A1_topic` / `A2_concept` / `A3_theory` / `A4_method` /
+`A5_outline` / `A6_conclusion` / `A7_refs`。填法见那份模板，每段都有注释。
+
+**未配置时怎么办 —— 写死的规矩**：
+
+- **一律产出「无法判定」并写明原因**，交人工/宿主 agent。
+- **绝不静默跳过、绝不判成「一致」**。静默跳过会被读成"这一项没问题"，
+  正是本包最警惕的静默失效（"检查器没跑"伪装成"全部合格"）。
+- 唯一的例外是 A7（文献承诺）与 A4 的样本量数字：它们是通用正则，不需要配置。
+- A1 在 `A1_topic.tokens` 空缺时会退化为"从开题全文里找《…》"，仍找不到才报无法判定。
+
+> ⚠️ 档案里的值必须与文档**逐字一致**（中文标点也要一致）。多数所谓"误报"其实是这里填错了词。
 
 ---
 
@@ -111,7 +141,12 @@ SK="F:/Coding/Project/paper-detail-doctor/skills/proposal-consistency"
 "$VPY" "$SK/scripts/audit.py" \
   -d "F:/路径/初稿.docx" \
   -p "F:/路径/开题报告.docx" \
+  [--anchors <锚点档案.yaml>] \
   [-o <产物目录>] [--json] [--print]
+
+# 不给 --anchors 时依次找 PDD_ANCHORS、<正文目录>/.thesis-doctor/anchors.yaml、
+# <包根>/assets/anchors.local.yaml；都没有则各锚点报「无法判定」交人工。
+cp assets/anchors.example.yaml assets/anchors.local.yaml   # 起步方式
 
 # 串进全身体检（audit_all 会把开题接进来并合并 issue）
 "$VPY" "F:/Coding/Project/paper-detail-doctor/workflow/audit_all.py" \
@@ -132,13 +167,16 @@ SK="F:/Coding/Project/paper-detail-doctor/skills/proposal-consistency"
 - `audit.json`：机器用，keys = `meta / counts / issues / suppressed`。每条 issue 带 `anchor`(A1–A7)、`conclusion`、`rule`、`severity`、`proposal_excerpt`、`thesis_excerpt`、`verdict`、`confidence`、`judgment_question`。
 - `audit-report.md`：人读证据卡（每张卡给两侧原文 + 期望/实际 + 判定问题 + 建议 + 裁定位）。
 
-`meta.notes` 固定写明三条：① 只读未改文档、action 全 null；② L2 待判交宿主；③ 五类结论→severity 映射。
+`meta.notes` 固定写明：① 只读未改文档、`action` 全 `null`；② **锚点档案来源**（或"未找到 → 各锚点将报无法判定"）；
+③ L2 待判交宿主；④ 五类结论→severity 映射；⑤ 锚点未配置一律产「无法判定」、不静默跳过。
+另在 `meta.anchors` 里给出档案的绝对路径（或 `null`）。
 
 ---
 
 ## 金标准跑分（自带评分，不靠感觉）
 
-金标准固化在 `tests/golden/开题核对-城市家庭.yaml`（人工逐条核对得来的 4 处真差异 + 8 条对齐锚点，**这是事实不是程序输出反推**）。本 skill 的验收脚本 `tests/selftest_proposal_consistency.py` 跑真实双文档并当次从磁盘读回结果，报三个真实指标：
+金标准固化在 `tests/golden/proposal-consistency.yaml`（人工逐条核对得来的 4 处真差异 + 8 条对齐锚点 + `locate` 定位关键词，**这是事实不是程序输出反推**）。
+差异 id 形如 `A5-01`（前缀即锚点），`(anchor, type) → id` 的映射与定位关键词都由 yaml 推导，**不写死在测试代码里**——换论文只改 yaml。本 skill 的验收脚本 `tests/selftest_proposal_consistency.py` 跑真实双文档并当次从磁盘读回结果，报三个真实指标：
 
 | 指标 | 含义 | 期望 |
 |---|---|---|
@@ -173,6 +211,8 @@ SK="F:/Coding/Project/paper-detail-doctor/skills/proposal-consistency"
 | 文件 | 作用 |
 |---|---|
 | `scripts/audit.py` | 只读核对主脚本（锚点抽取 + 三层判定 + 证据卡 + 金标准跑分逻辑） |
+| `../../assets/anchors.example.yaml` | **锚点档案模板**：每篇论文不同的题眼/概念/理论/方法要素/大纲锚点填这里 |
+| `../../assets/anchors.local.yaml` | 本机私有档案（已被 `.gitignore` 忽略，不入库） |
 | `SKILL.md` | 本文件（路由/编排用） |
 
 ## 输出约定

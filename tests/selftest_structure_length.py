@@ -18,7 +18,7 @@ tests/selftest_structure_length.py —— structure-length 的**注入式**验�
 
 怎么跑
     cd F:\Coding\Project\paper-detail-doctor
-    "C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe" tests/selftest_structure_length.py
+    "python" tests/selftest_structure_length.py
 """
 import copy
 import importlib.util
@@ -31,6 +31,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 sys.path.insert(0, PKG)
+sys.path.insert(0, HERE)   # 让 tests/_sample.py 可被 import
 
 from docx.oxml.ns import qn as _qn  # noqa: E402
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
@@ -40,7 +41,8 @@ from shared.lib.docx_ops import (                                    # noqa: E40
 )
 from shared.lib.docx_scan import norm                                # noqa: E402
 
-DEFAULT_SAMPLE = r'F:\Coding\work\0813-城市家庭\初稿.docx'
+from _sample import thesis as _sample_thesis, missing_hint as _missing_hint   # noqa: E402
+DEFAULT_SAMPLE = _sample_thesis()
 TMP = tempfile.mkdtemp(prefix='pdd-struct-selftest-')
 
 _ok, _fail, _notes = 0, 0, []
@@ -271,7 +273,7 @@ def inject_abstract_overflow(docx):
     d = Doc(docx)
     cn = [i for i, p in enumerate(d.paragraphs(), 1) if p.style.name == '摘要标题'][0]
     target = d.paragraphs()[cn]   # 0-based 索引 cn 即第 cn+1 段（摘要正文）
-    add = '本研究进一步发现城市家庭代际情感资源的分配呈现出明显的结构性不对称特征，' * 60
+    add = '本研究进一步发现一般家庭代际情感资源的分配呈现出明显的结构性不对称特征，' * 60
     set_para_text(target._element, target.text + add)
     d.save_atomic()
     return len(re.findall(r'[\u4e00-\u9fff]', target.text + add))
@@ -283,8 +285,9 @@ def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SAMPLE
     global AUD
     AUD = load_audit_mod()
-    if not os.path.exists(src):
+    if not src or not os.path.exists(src):
         print('样本不存在：%s' % src)
+        print(_missing_hint())
         return 2
     print('样本：%s\n临时目录：%s' % (src, TMP))
 

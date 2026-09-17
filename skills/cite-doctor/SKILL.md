@@ -63,7 +63,7 @@ metadata:
 ## 命令行用法
 
 ```bash
-VPY="C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+VPY="python"
 SK="F:/Coding/Project/paper-detail-doctor/skills/cite-doctor"
 ```
 

@@ -63,7 +63,7 @@ metadata:
 所有脚本用 venv 解释器绝对路径调用：
 
 ```bash
-VPY="C:/Users/Tian/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+VPY="python"
 SK="F:/Coding/Project/paper-detail-doctor/skills/format-audit"
 ```
 

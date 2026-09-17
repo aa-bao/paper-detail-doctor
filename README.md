@@ -6,7 +6,7 @@
 
 包入口：`SKILL.md`　｜　设计方案：`docs/设计方案-v2.md`　｜　进度：`docs/路线图.md`
 
-**当前状态（v0.3.0）：6/7 个子 skill 已实现，8 套验收 219 项全通过。**
+**当前状态（v0.3.0）：6/7 个子 skill 已实现，8 套验收 224 项全通过；MIT 许可。**
 
 ---
 
@@ -59,6 +59,9 @@ python skills/template-extract/scripts/extract_conventions.py -d 范文.docx -o 
 # ② 只读诊断：五个审计型子 skill 汇总成一份报告
 python workflow/audit_all.py -d 我的论文.docx -s spec.json
 python workflow/audit_all.py -d 我的论文.docx -p 开题报告.docx   # 加 -p 才跑开题一致性核对
+#    一致性核对还需要"锚点档案"（每篇论文不同的题眼/概念/理论/大纲锚点）：
+cp assets/anchors.example.yaml assets/anchors.local.yaml          # 然后填自己的锚点
+#    没有档案时不会瞎判 —— 各锚点一律报「无法判定」交人工（未配置 ≠ 一致）
 python workflow/audit_all.py -d 我的论文.docx --only cite-doctor  # 只跑一个
 
 # ③ 生成可编辑计划（落在文档旁的 .thesis-doctor/plan.yaml）→ 打开勾选
@@ -87,7 +90,7 @@ python workflow/apply.py -d 我的论文.docx --rollback
 | `cite-doctor` | 引注位置/形态/跳转、编号制、正反覆盖、著录、去重 | L2 · 7 条规则 | ✅ |
 | `text-style` | 引号体例、标点异常、破折号密度、标题体例、过程痕迹 | L3 · 5 + 3 条可选 | ✅ |
 | `structure-length` | 章节编号、图表覆盖/编号/题注、摘要版式、双口径字数 | L4 · 4 条规则 | ✅ |
-| `proposal-consistency` | 开题 ↔ 正文一致性核对（锚点法 + 三层判定 + 证据卡 + 跑分） | L4 · 26 | ✅ |
+| `proposal-consistency` | 开题 ↔ 正文一致性核对（锚点法 + 三层判定 + 证据卡 + 跑分；锚点外置为档案） | L4 · 26 | ✅ |
 | `quote-verify` | 引语逐字校验（不得拼接、跨句须用「……」），需自备语料库 | 可选（质性研究） | ⬜ |
 
 设计清单 26 项（**23 项默认 + 3 项可选**：中英空格 / 全半角 / 术语一致性，信噪比低故默认关闭）；
@@ -103,6 +106,7 @@ python workflow/apply.py -d 我的论文.docx --rollback
 ```
 paper-detail-doctor/
 ├── SKILL.md                    # 包入口：索引 + 路由程序 + 工作流编排
+├── LICENSE                     # MIT
 ├── tools/install.py            # 安装到 ~/.workbuddy/skills/（只注册包入口）
 ├── skills/                     # 7 个专职子 skill，各自带 SKILL.md
 ├── shared/
@@ -111,7 +115,11 @@ paper-detail-doctor/
 ├── workflow/                   # audit_all / plan / apply（+ _common）
 ├── references/                 # 跨 skill 的 SOP（尚未成文）
 ├── assets/                     # config.example.yaml + skills-index.yaml（路由唯一真源）+ rules/
+│   ├── anchors.example.yaml    # 一致性核对的锚点档案模板（每篇论文一份）
+│   └── anchors.local.yaml      # 本机私有锚点档案（*.local.yaml 已被忽略）
 ├── tests/                      # 8 套验收（入口：tests/run_all.py）+ tests/golden/
+│   ├── _sample.py              # 样本路径解析（env / sample.local.yaml）—— 不写死任何本机路径
+│   └── sample.local.example.yaml  # 复制成 sample.local.yaml 填自己的文档路径（*.local.yaml 已被忽略）
 └── docs/                       # 设计方案 + 路线图
 ```
 
@@ -129,24 +137,41 @@ python tests/run_all.py
 |---|---|
 | `selftest_shared_lib` | 读侧/写侧/闸门的**机制**：定位三元组指纹、幂等账本、快照、回滚 |
 | `selftest_cite_doctor` 等四套 | 各子 skill 的规则**真的能查出问题**：注入缺陷 → 检出 → 修复 → 复检 → 幂等 |
-| `selftest_proposal_consistency` | 一致性核对的金标准跑分（召回/误报/定位三指标）+ 改开题内容看结论是否跟着变 |
+| `selftest_proposal_consistency` | 一致性核对的金标准跑分（召回/误报/定位三指标）+ 改开题内容看结论是否跟着变 + **空锚点档案下不编造结论** |
 | `selftest_routing` | 路由可区分性：示例 prompt 是否各归其位、`not_for` 与 `out_of_scope` 是否生效 |
 | `e2e_cli` | 命令行**串起来**能不能用：yaml 往返、路径约定、哈希门禁、回滚 |
 
 > **验收范式**：注入式。在干净稿上人为造出缺陷 → 确认能抓到 → 修完确认消失。
 > 只验"干净稿不报错"是没有意义的 —— 一个永远返回空列表的检查器也能通过那种测试。
 
+**关于测试样本**：其中 6 套需要一个真实 docx 当样本（注入式自检要改文档）。
+本包**不把任何人的本机路径写进代码**，样本路径按
+`命令行参数 → 环境变量 PDD_SAMPLE / PDD_PROPOSAL → tests/sample.local.yaml` 解析：
+
+```bash
+cp tests/sample.local.example.yaml tests/sample.local.yaml   # 然后填上你自己的文档路径
+```
+
+`*.local.yaml` 已在 `.gitignore` 里，不会被提交。样本缺失时那几套会**明确报
+「样本未提供」并跳过（退出码 2）**，在总表里记作「跳过」——**不计入通过，也不算失败**。
+这是有意为之：绝不把"没跑"伪装成"通过"。
+共享层机制、路由可区分性两套不需要样本，任何机器上都能跑全。
+
 ---
 
 ## 环境
 
-- Python 3.11+（本机可用：`C:\Users\Tian\.workbuddy\binaries\python\envs\default\Scripts\python.exe`；
-  `tools/install.py` 会自动探测一个真能 `import lxml, docx, yaml` 的解释器写进入口存根）
+- Python 3.11+
 - 依赖：`python-docx`、`lxml`、`pyyaml`；PDF 相关脚本另需 `pymupdf`；
   PDF 导出 / WPS 目录域更新需 Windows + WPS（走 `win32com`）
+  （`tools/install.py` 会自动探测一个真能 `import lxml, docx, yaml` 的解释器写进入口存根）
 - 路径、阈值、规则全部外置到 `assets/config.yaml`（样例见 `assets/config.example.yaml`）
-- ⚠️ 本机 Git Bash 的 `dirname` / `ls` / `head` / `tail` 不可用，**管道到 `tail` 会直接失败**；
-  所有脚本与测试直接用 Python 跑，不要用管道截断
+
+---
+
+## License
+
+[MIT](LICENSE)，Copyright (c) 2026 aa-bao。
 
 ---
 
