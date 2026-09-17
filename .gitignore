@@ -1,0 +1,29 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---- 论文快照（体积大且可重建）----
+_backup/
+_output/
+.thesisignore.bak
+
+# ---- 用户论文：绝不入库 ----
+*.docx
+*.doc
+*.pdf
+*.wps
+*.wpt
+
+# ---- 环境 ----
+.env
+*.local.yaml
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+~$*

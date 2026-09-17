@@ -1,0 +1,69 @@
+# ============================================================
+# paper-detail-doctor 配置样例
+# 复制为 config.yaml 后按自己论文改；config.yaml 已被 .gitignore 忽略
+# ============================================================
+
+# ---------- 目标文档 ----------
+docx: "D:/我的论文/论文初稿.docx"          # 唯一真值源
+
+# ---------- 标准来源（三级优先）----------
+# ① 模板 spec（最高优先）> ② 本文件 overrides > ③ GB/T 7714 + 通用惯例（兜底）
+template_spec: "spec/template-spec.json"   # 由 scripts/template/extract_template.py 生成
+# template_spec: null                      # 没有模板/范文时置 null，报告会显著标注"标准来源：默认"
+
+# ② 项目级覆盖：仅当导师/学校另有要求、且模板里没写到时才填
+overrides:
+  bibliography:
+    system: sequence        # sequence（顺序编码制）| author-year（著者-出版年制）
+  citation:
+    style: superscript-bracket   # superscript-bracket（上标方括号）| inline-bracket | inline-paren | superscript-number
+    position: before-punct       # before-punct（句读符前）| after-punct
+  caption:
+    figure: below          # 图题位置：below | above
+    table: above           # 表题位置
+    figure_format: "图 {chapter}-{index}"
+    table_format: "表 {chapter}-{index}"
+
+# ---------- 阈值 ----------
+thresholds:
+  dash_density_per_mille: 2.5      # 破折号密度上限（‰，分章统计）
+  citation_superscript_ratio: 0.65 # 上标字号 / 正文号（仅当 style 为上标类时校验）
+  abstract_max_chars: 400
+  word_target: null                # 全稿目标字数；null = 不检查
+  chapter_quota:                   # 分章配额（可选）
+    "第1章": null
+    "第2章": null
+
+# ---------- 检查项开关 ----------
+# 默认启用 23 项；18/19/20 默认关闭（信噪比低）
+checks:
+  l1_format:      [style-compliance, page-setup, page-numbering, header, fonts, toc]
+  l2_citation:    [cite-position, cite-form, cite-jump, cite-numbering, ref-coverage, ref-format, ref-duplicate]
+  l3_text:        [quote-style, punctuation, dash-density, heading-style, process-trace]
+  l4_structure:   [heading-sequence, figure-table, abstract-layout, length, proposal-consistency]
+  optional:       []               # 想开可选检查就填，例如 [cjk-spacing, fullwidth-halfwidth, term-consistency]
+
+# ---------- 文字体例规则（标题平实化等）----------
+rules:
+  heading_plain: "assets/rules/heading_plain.yaml"   # 标题去术语映射
+  edits: null                                        # 通用逐条替换规则（唯一命中断言式）
+
+# ---------- 一致性核对 ----------
+consistency:
+  proposal: "D:/我的论文/开题报告.docx"   # 开题报告（作为锚点来源）
+  anchors: [title, concepts, theories, method, outline, conclusion, references]
+  semantic_confidence_min: 0.7            # L2 语义判定置信度下限，低于此值归入"无法判定"转人工
+
+# ---------- 输出 ----------
+output:
+  dir: "_output"              # 审计报告 / plan.yaml / apply-log.json
+  backup_dir: "_backup"       # apply 前的快照
+  language: zh
+
+# ---------- 人工裁定保留 ----------
+# 也可写在论文同目录的 .thesisignore（按 issue-id 或 rule 级别）
+ignore:
+  - id: cite-position-0042
+    reason: 导师要求此处用文中注
+  # - rule: term-consistency
+  #   reason: 本文是文艺学论文，术语本就有多种写法
