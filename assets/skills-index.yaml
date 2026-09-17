@@ -143,8 +143,12 @@ skills:
     layer: L4 · 26
     writes: false           # 只出报告，不改文档
     depends_on: []
-    covers: [proposal-consistency]
-    inputs: [开题报告（docx/PDF）, 论文正文（docx/md）]
+    covers: [prop-topic, prop-concept, prop-theory, prop-method-sample,
+             prop-outline, prop-conclusion, prop-bibliography]
+    # 注意：L2 语义项（A2 概念 / A3 理论 / A6 预期结论）脚本不下结论，
+    #     只输出 verdict=待判 的证据卡（带两侧原文 + 判定问题），由宿主 agent 裁定。
+    inputs: [开题报告（docx）, 论文正文（docx）]
+    # 只支持 docx：开题报告的正文通常整个装在一个大表格里，需要按 w:tbl 提取文本。
     outputs: [一致性核对报告（证据卡）, 召回/误报/定位准确率三指标]
     triggers:
       - 开题报告和正文对得上吗

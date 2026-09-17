@@ -3,15 +3,17 @@
 r"""
 tests/run_all.py —— 跑齐全部验收，末尾给一张总表
 
-改完共享层或任何子 skill 之后跑这一个就够了。六份测试各有分工，缺一不可：
+改完共享层或任何子 skill 之后跑这一个就够了。七份测试各有分工，缺一不可：
     selftest_shared_lib       读侧/写侧/闸门的**机制**是否成立（定位、幂等、快照、回滚）
     selftest_cite_doctor      L2 规则是否**真的能查出问题**（注入缺陷 → 检出 → 修复 → 复检）
     selftest_format_audit     L1 规则（注入页边距/页码/页眉/字号/目录域）
     selftest_text_style       L3 规则（注入引号/标点/破折号/标题/TODO，含 3 项可选）
     selftest_structure_length L4 规则（注入断号/重复题注/摘要超限 + 三口径字数交叉验证）
+    selftest_proposal_consistency  开题↔正文一致性：金标准跑分（召回/误报/定位三指标，
+                             真实双文档）+ 改开题内容看结论是否跟着变（反硬编码验证）
     e2e_cli                   命令行**串起来**能不能用（yaml 往返、路径约定、门禁、回滚）
 
-三个 audit 型子 skill 的自检都遵循同一个范式：**在干净稿上人为注入缺陷 →
+五个 audit 型子 skill 的自检都遵循同一个范式：**在干净稿上人为注入缺陷 →
 确认能检出 → 再确认改完就消失**。只跑"干净稿不报错"是没有意义的 ——
 一个永远返回空列表的检查器也能通过那种测试。
 
@@ -35,6 +37,7 @@ SUITES = [
     ('format-audit 规则（注入式）', 'selftest_format_audit.py'),
     ('text-style 规则（注入式）', 'selftest_text_style.py'),
     ('structure-length 规则（注入式）', 'selftest_structure_length.py'),
+    ('proposal-consistency 金标准跑分', 'selftest_proposal_consistency.py'),
     ('命令行全链路', 'e2e_cli.py'),
 ]
 

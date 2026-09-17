@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://paper-detail-doctor.local/schemas/issue.schema.json",
   "title": "Issue",
-  "description": "一条被审计出来的问题。所有审计型子 skill 的 audit() 返回的元素。",
+  "description": "一条被审计出来的问题。所有审计型子 skill 的 audit() 返回的元素。proposal-consistency 额外携带一致性核对的证据字段（conclusion/anchor/proposal_excerpt/thesis_excerpt/verdict/confidence/judgment_question）。",
   "type": "object",
   "required": ["id", "rule", "layer", "skill", "severity", "location",
                "expected", "actual", "standard_source", "suggestion", "suppressible"],
@@ -15,12 +15,12 @@
     },
     "rule": {
       "type": "string",
-      "description": "规则名，对应 assets/skills-index.yaml 里的 covers 条目，如 cite-form。"
+      "description": "规则名，对应 assets/skills-index.yaml 里的 covers 条目，如 cite-form / prop-outline。"
     },
     "layer": { "enum": ["L1", "L2", "L3", "L4", "optional"] },
     "skill": {
       "type": "string",
-      "description": "产出本条的子 skill id，如 cite-doctor。"
+      "description": "产出本条的子 skill id，如 cite-doctor / proposal-consistency。"
     },
     "severity": {
       "enum": ["error", "warn", "info"],
@@ -55,17 +55,48 @@
     "suggestion": { "type": "string", "description": "建议怎么改（给人和给 apply 都看）。" },
     "suppressible": {
       "type": "boolean",
-      "description": "是否允许用户用 .thesisignore 裁定保留。结构性缺陷（如引注跳转失效）应为 false。"
+      "description": "是否允许用户用 .thesisignore 裁定保留。结构性缺陷应为 false。"
     },
     "action": {
       "type": ["object", "null"],
-      "description": "可执行的修复动作；null 表示本条只能人工改，apply 不会碰它。",
+      "description": "可执行的修复动作；null 表示本条只能人工改，apply 不会碰它。一致性核对一律为 null（绝不自动改文档）。",
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string", "description": "动作名，如 render-superscript-citation。" },
         "params": { "type": "object", "description": "动作参数。" }
       },
       "required": ["name"]
+    },
+    "conclusion": {
+      "type": "string",
+      "enum": ["一致", "缺失", "改动", "偏离", "无法判定"],
+      "description": "proposal-consistency 专用：五类结论之一。一致不产生 issue（进通过清单）。"
+    },
+    "anchor": {
+      "type": ["string", "null"],
+      "enum": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", null],
+      "description": "proposal-consistency 专用：七类锚点之一（题目/概念/理论/方法/大纲/结论/文献）。"
+    },
+    "proposal_excerpt": {
+      "type": ["string", "null"],
+      "description": "proposal-consistency 专用：开题报告侧原文摘录，供人工复核。"
+    },
+    "thesis_excerpt": {
+      "type": ["string", "null"],
+      "description": "proposal-consistency 专用：正文侧原文摘录，供人工复核。"
+    },
+    "verdict": {
+      "type": ["string", "null"],
+      "enum": ["auto", "待判", "待人工确认", null],
+      "description": "proposal-consistency 专用：auto=脚本确定性判定；待判=L2 语义未下结论，交宿主 agent；待人工确认=已给结论但终裁在人与导师。"
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "description": "proposal-consistency 专用：L2 语义等价置信度；脚本不下结论时恒为 null。"
+    },
+    "judgment_question": {
+      "type": ["string", "null"],
+      "description": "proposal-consistency 专用：L2 交给宿主 agent 的判定问题（等价/不等价/无法判定）。"
     }
   }
 }

@@ -38,20 +38,31 @@ SKILLS = [
     {'id': CITE, 'layer': 'L2', 'run': 'skills/cite-doctor/scripts/audit.py'},
     {'id': 'text-style', 'layer': 'L3', 'run': 'skills/text-style/scripts/audit.py'},
     {'id': 'structure-length', 'layer': 'L4', 'run': 'skills/structure-length/scripts/audit.py'},
+    # proposal-consistency 需要两份文档（正文 + 开题报告），用 requires 标记；
+    # 不传 -p 时安静跳过，并在 meta.notes 写"未提供开题报告，跳过一致性核对（用 -p 指定）"。
+    {'id': 'proposal-consistency', 'layer': 'L4',
+     'run': 'skills/proposal-consistency/scripts/audit.py', 'requires': ['proposal']},
 ]
 
 
-def run_one(docx, skill, spec=None, verbose=True):
+def run_one(docx, skill, spec=None, proposal=None, verbose=True):
     """在**子进程**里跑子 skill 的 audit。
 
     为什么用子进程而不是 import：子 skill 之间将来会有不兼容的依赖，
     也可能某个 skill 崩了。进程隔离之后，一个 skill 挂掉不影响其余 ——
     体检工具最忌讳"因为第 3 项检查报错，前两项结果也丢了"。
+
+    proposal-consistency 需要开题报告：传了 -p 就接给它；它不接受 -s
+    （没有 spec 概念），所以 -s 只对非 proposal 类 skill 传。
     """
     import subprocess
     script = os.path.join(_p.dirname(_p.dirname(_p.abspath(__file__))), skill['run'])
     cmd = [sys.executable, script, '-d', docx]
-    if spec:
+    if skill.get('requires') and 'proposal' in skill['requires']:
+        if proposal:
+            cmd += ['-p', proposal]
+        # proposal 类 skill 不接收 -s
+    elif spec:
         cmd += ['-s', spec]
     p = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if verbose and p.stdout:
@@ -68,6 +79,8 @@ def main():
     ap = argparse.ArgumentParser(description='论文全项体检（只读）')
     ap.add_argument('-d', '--docx', required=True)
     ap.add_argument('-s', '--spec', default=None)
+    ap.add_argument('-p', '--proposal', default=None,
+                    help='开题报告 docx（proposal-consistency 一致性核对需要）')
     ap.add_argument('--only', default=None, help='只跑指定子 skill（逗号分隔）')
     ap.add_argument('--json', action='store_true')
     a = ap.parse_args()
@@ -77,6 +90,9 @@ def main():
         raise SystemExit('文档不存在：%s' % docx)
     if is_locked(docx):
         raise SystemExit('文档正被 WPS/Word 独占，请先关闭：%s' % docx)
+    proposal = os.path.abspath(a.proposal) if a.proposal else None
+    if proposal and not os.path.exists(proposal):
+        raise SystemExit('开题报告不存在：%s' % proposal)
 
     banner('论文体检 · %s' % os.path.basename(docx))
     print('（只读审计，不会改动文档）')
@@ -90,7 +106,11 @@ def main():
         if not os.path.exists(os.path.join(
                 _p.dirname(_p.dirname(_p.abspath(__file__))), skill['run'])):
             continue                                  # 尚未实现的子 skill 安静跳过
-        b = run_one(docx, skill, a.spec)
+        # proposal-consistency 需要开题报告：没给 -p 就安静跳过并记一笔
+        if skill.get('requires') and 'proposal' in skill['requires'] and not proposal:
+            notes.append('未提供开题报告，跳过一致性核对（用 -p 指定）')
+            continue
+        b = run_one(docx, skill, a.spec, proposal)
         ran.append(skill['id'])
         if not b:
             notes.append('子 skill `%s` 未产出结果。' % skill['id'])
