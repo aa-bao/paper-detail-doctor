@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://paper-detail-doctor.local/schemas/issue.schema.json",
+  "title": "Issue",
+  "description": "一条被审计出来的问题。所有审计型子 skill 的 audit() 返回的元素。",
+  "type": "object",
+  "required": ["id", "rule", "layer", "skill", "severity", "location",
+               "expected", "actual", "standard_source", "suggestion", "suppressible"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+-[0-9]{4}$",
+      "description": "稳定 ID，形如 cite-form-0042。供 .thesisignore 按条引用；同一问题重跑必须得到同一 ID（由 rule + 定位指纹哈希生成，不能用自增序号）。"
+    },
+    "rule": {
+      "type": "string",
+      "description": "规则名，对应 assets/skills-index.yaml 里的 covers 条目，如 cite-form。"
+    },
+    "layer": { "enum": ["L1", "L2", "L3", "L4", "optional"] },
+    "skill": {
+      "type": "string",
+      "description": "产出本条的子 skill id，如 cite-doctor。"
+    },
+    "severity": {
+      "enum": ["error", "warn", "info"],
+      "description": "error=违反明确规范；warn=可疑/不一致；info=提示。"
+    },
+    "location": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["paragraph", "run", "table", "header", "footer", "toc", "document"] },
+        "index": {
+          "type": ["integer", "null"],
+          "description": "段落序号（1-based，与 python-docx doc.paragraphs 对齐），便于人工定位。"
+        },
+        "excerpt": {
+          "type": ["string", "null"],
+          "description": "包含问题的文本片段（前后各若干字符），供人工肉眼核对。"
+        },
+        "offset": {
+          "type": ["integer", "null"],
+          "description": "在所属段落内的字符偏移。"
+        }
+      }
+    },
+    "expected": { "type": "string", "description": "规范要求的是什么。" },
+    "actual": { "type": "string", "description": "文档里实际是什么。" },
+    "standard_source": {
+      "enum": ["template", "config", "default"],
+      "description": "判定依据来自哪：template=模板/范文 spec；config=用户配置覆盖；default=通用学术惯例（报告里要显著标注，别让人误以为学校就这么要求）。"
+    },
+    "suggestion": { "type": "string", "description": "建议怎么改（给人和给 apply 都看）。" },
+    "suppressible": {
+      "type": "boolean",
+      "description": "是否允许用户用 .thesisignore 裁定保留。结构性缺陷（如引注跳转失效）应为 false。"
+    },
+    "action": {
+      "type": ["object", "null"],
+      "description": "可执行的修复动作；null 表示本条只能人工改，apply 不会碰它。",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "动作名，如 render-superscript-citation。" },
+        "params": { "type": "object", "description": "动作参数。" }
+      },
+      "required": ["name"]
+    }
+  }
+}

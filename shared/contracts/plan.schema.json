@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://paper-detail-doctor.local/schemas/plan.schema.json",
+  "title": "RepairPlan",
+  "description": "plan.yaml 的结构。由 workflow/plan.py 从 audit.json 生成，经用户勾选后交给 workflow/apply.py。",
+  "type": "object",
+  "required": ["version", "docx", "generated_at", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "docx": {
+      "type": "string",
+      "description": "目标文档绝对路径。apply 会校验它与实际文件一致，防止把 A 稿的 plan 套到 B 稿上。"
+    },
+    "docx_sha256": {
+      "type": ["string", "null"],
+      "description": "生成 plan 时目标文档的哈希。apply 前比对：不一致说明文档已被改过，plan 可能失效 —— 必须提醒用户重新跑 audit。"
+    },
+    "generated_at": { "type": "string", "description": "ISO 8601 时间戳。" },
+    "audit_ref": { "type": ["string", "null"], "description": "来源 audit.json 路径。" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["issue_id", "action", "enabled"],
+        "additionalProperties": false,
+        "properties": {
+          "issue_id": { "type": "string" },
+          "rule": { "type": "string", "description": "冗余一份，方便用户在 yaml 里按规则名批量勾选。" },
+          "skill": { "type": "string" },
+          "title": { "type": "string", "description": "人类可读的一行说明。" },
+          "action": { "type": "string", "description": "动作名，apply 按它分发。" },
+          "params": { "type": "object" },
+          "enabled": {
+            "type": "boolean",
+            "description": "★ 用户在这一栏勾选。false = apply 跳过。"
+          },
+          "reason": {
+            "type": ["string", "null"],
+            "description": "关掉时建议写原因，便于下次回看和团队协作。"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "plan.py 自动填写的提示，例如：本批含 3 条结构性缺陷不可抑制。"
+    }
+  }
+}
