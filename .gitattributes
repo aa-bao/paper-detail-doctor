@@ -1,0 +1,10 @@
+# 统一换行符，避免 Windows 上的 CRLF 噪音（本仓库以 Python/markdown 为主）
+* text=auto eol=lf
+
+# 二进制文件不做换行转换
+*.docx  binary
+*.doc   binary
+*.pdf   binary
+*.wps   binary
+*.png   binary
+*.jpg   binary
