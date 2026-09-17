@@ -35,6 +35,13 @@ thresholds:
     "第2章": null
 
 # ---------- 检查项开关 ----------
+# 检查项归属的子 skill（对应 skills/ 下的目录）：
+#   l1_format      -> skills/format-audit
+#   l2_citation    -> skills/cite-doctor
+#   l3_text        -> skills/text-style
+#   l4_structure   -> skills/structure-length
+#   proposal-consistency -> skills/proposal-consistency
+#   quote-verify   -> skills/quote-verify（可选，需自备语料库）
 # 默认启用 23 项；18/19/20 默认关闭（信噪比低）
 checks:
   l1_format:      [style-compliance, page-setup, page-numbering, header, fonts, toc]
