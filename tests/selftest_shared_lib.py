@@ -240,6 +240,27 @@ def main():
           'failed=%s' % j['failed'][:1])
     check('文档未被改动', sha256_file(docx) == h_now)
 
+    # ★ 回归：plan 缺 `docx` 字段时，不许被**误拒**，也不许编造路径。
+    #   踩过的坑：`os.path.abspath(plan.get('docx') or '')` → abspath('') 等于**当前工作目录**，
+    #   于是这种 plan 被当成"为 <cwd> 生成的"而拒掉，错误信息里的路径是编造的。
+    #   正确行为：照常执行 + 给一条 warn 说明"没记录目标文档，无法判断是否套错文件"。
+    noplan_docx = {k: v for k, v in dict(plan, docx_sha256=h_now).items() if k != 'docx'}
+    noplan_docx['items'] = [{
+        'issue_id': 'selftest-dim', 'action': 'ref.bookmark', 'enabled': True,
+        'title': '测试书签 2', 'params': {
+            'locator': make_locator(Doc(docx).paragraphs()[1]._element, 2),
+            'name': 'pdd_selftest2'}}]
+    from shared.lib.ooxml_guard import guard_plan
+    _g = guard_plan(docx, noplan_docx)
+    _errs = [m for lv, m in _g if lv == 'error']
+    _warns = [m for lv, m in _g if lv == 'warn']
+    check('plan 缺 docx 字段不被误拒', not _errs, 'errors=%s' % _errs[:1])
+    check('plan 缺 docx 字段如实给 warn（不编造路径）',
+          any('未记录目标文档' in w for w in _warns), 'warns=%s' % _warns[:2])
+    check('报错信息里不出现当前工作目录冒充来源',
+          not any(os.getcwd().lower() in (m or '').lower() for lv, m in _g),
+          'cwd=%s' % os.getcwd())
+
     # 用「当前哈希」重建 plan，让第一批真的能跑
     good = dict(plan, docx_sha256=h_now)
     good['items'] = [
@@ -258,11 +279,20 @@ def main():
     j2 = apply_plan(docx, good, dry_run=False)
     check('第二批全部幂等跳过', j2['changed_count'] == 0 and len(j2['skipped']) == 1,
           'changed=%d skipped=%d' % (j2['changed_count'], len(j2['skipped'])))
-    check('幂等跳过也没再改文件', sha256_file(docx) == h1)
+    # ★ 这两条断言的是**字节相等**，而不只是"能打开"。为什么必须这么严：
+    #   plan 里带 docx_sha256 作为落盘门禁。若一次"全部幂等跳过"的空操作也把 docx
+    #   重存一遍，字节哈希就会变（python-docx 写 zip 时给每个条目盖当前时间戳），
+    #   于是同一份 plan 立刻被判成过期 —— 对已改完的文档重跑 apply 会被拒。
+    #   失败时把两边哈希打出来，否则只能看到"不等"，查不出为什么。
+    _h = sha256_file(docx)
+    check('幂等跳过也没再改文件', _h == h1 and not j2.get('saved_to'),
+          'saved_to=%r 前 %s / 后 %s' % (j2.get('saved_to'), h1[:12], _h[:12]))
 
     j3 = apply_plan(docx, good, dry_run=True)
+    _h3 = sha256_file(docx)
     check('dry-run 不写盘且仍能算改动数',
-          (not j3.get('saved_to')) and sha256_file(docx) == h1)
+          (not j3.get('saved_to')) and _h3 == h1,
+          'saved_to=%r 哈希前 %s / 后 %s' % (j3.get('saved_to'), h1[:12], _h3[:12]))
 
     check('回滚可用', sm.restore(snap) and sha256_file(docx) == h_now)
 

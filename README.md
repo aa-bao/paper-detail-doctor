@@ -6,7 +6,7 @@
 
 包入口：`SKILL.md`　｜　设计方案：`docs/设计方案-v2.md`　｜　进度：`docs/路线图.md`
 
-**当前状态（v0.3.0）：6/7 个子 skill 已实现，8 套验收 224 项全通过；MIT 许可。**
+**当前状态（v0.3.0）：6/7 个子 skill 已实现，8 套验收 227 项全通过；MIT 许可。**
 
 ---
 
@@ -113,7 +113,10 @@ paper-detail-doctor/
 │   ├── lib/                    # docx_scan（读）/ docx_ops（写）/ ooxml_guard / report / standards
 │   └── contracts/              # Issue / PlanItem 的 JSON Schema
 ├── workflow/                   # audit_all / plan / apply（+ _common）
-├── references/                 # 跨 skill 的 SOP（尚未成文）
+├── references/                 # 跨 skill 的三份 SOP + 索引 README
+│   ├── SOP-引注上标与跳转.md
+│   ├── SOP-模板标准.md
+│   └── SOP-开题一致性核对.md
 ├── assets/                     # config.example.yaml + skills-index.yaml（路由唯一真源）+ rules/
 │   ├── anchors.example.yaml    # 一致性核对的锚点档案模板（每篇论文一份）
 │   └── anchors.local.yaml      # 本机私有锚点档案（*.local.yaml 已被忽略）

@@ -203,12 +203,19 @@ def guard_plan(docx_path: str, plan: dict, strict_hash: bool = True):
     if not os.path.exists(docx_path):
         out.append(('error', '目标文档不存在：%s' % docx_path))
         return out
-    p_docx = os.path.abspath(plan.get('docx') or '')
+    # ★ 这里踩过一个坑：写成 `os.path.abspath(plan.get('docx') or '')` 时，
+    #   缺 `docx` 字段的 plan 会得到 `abspath('')` == **当前工作目录**，
+    #   于是被当成"plan 是为 <cwd> 生成的"而拒掉，还打印一句**编造**的路径。
+    #   缺字段就该如实说"没记录"，不许拿 cwd 冒充。
+    p_docx = os.path.abspath(plan['docx']) if plan.get('docx') else ''
     if p_docx and p_docx != os.path.abspath(docx_path):
         out.append(('error',
                     'plan 是为「%s」生成的，当前目标是「%s」—— 拒绝套用。'
                     % (p_docx, os.path.abspath(docx_path))))
         return out
+    if not p_docx:
+        out.append(('warn', 'plan 未记录目标文档（没有 docx 字段），'
+                            '无法判断是否套错了文件。'))
     want = plan.get('docx_sha256')
     if want:
         got = sha256_file(docx_path)
@@ -308,9 +315,21 @@ def apply_plan(docx_path: str, plan: dict, dry_run: bool = False,
             rec['reason'] = '意外错误 %s: %s' % (type(e).__name__, e)
             journal['failed'].append(rec)
 
-    if not dry_run and (journal['changed_count'] or journal['skipped']):
-        journal['saved_to'] = doc.save_atomic()
-        if man is not None:
+    # ★ 只在**真的改了东西**时才重写 docx。
+    #
+    # 曾经的条件是 `changed_count or skipped` —— 于是一次"全部幂等跳过"的空操作也会
+    # 把 docx 重存一遍。这有三个真实后果（都不是理论担忧）：
+    #   ① 违反"最小侵入"：改都没改却动了文件；
+    #   ② **plan 的哈希门禁自己把自己废掉**：plan 里带 docx_sha256，重存后字节哈希变了
+    #      （python-docx 写 zip 时给每个条目盖当前时间戳），于是同一份 plan 立刻变成
+    #      "文档已改变"而被拒——对一份已经改完的文档重跑 apply 会被判为过期；
+    #   ③ 让"幂等跳过不重写文件"这条断言变得不确定：两次保存只要跨过 DOS 时间戳
+    #      的 2 秒刻度，字节就不同（曾因此出现过 1/7 概率的偶发失败）。
+    # 幂等账本是**旁挂文件**（.thesis-doctor/ 下），所以不重存 docx 不影响账本落盘。
+    if not dry_run:
+        if journal['changed_count']:
+            journal['saved_to'] = doc.save_atomic()
+        if man is not None and (journal['changed_count'] or journal['skipped']):
             man.save()
 
     journal['finished_at'] = time.strftime('%Y-%m-%dT%H:%M:%S')

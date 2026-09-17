@@ -247,10 +247,11 @@ paper-detail-doctor/
 │   ├── proposal-consistency/
 │   └── quote-verify/
 ├── shared/
-│   ├── lib/                    # docx_scan（读）/ docx_ops（写·12 个具名动作）/ ooxml_guard（三道闸门）/ report / standards（标准来源三级优先）
-│   └── contracts/              # Issue / PlanItem 的 JSON Schema（子 skill 之间只靠它交接）
+│   ├── lib/                    # docx_scan（读）/ docx_ops（写·13 个具名动作）/ ooxml_guard（三道闸门）/ report / standards（标准来源三级优先）
+│   ├── contracts/              # Issue / PlanItem 的 JSON Schema（子 skill 之间只靠它交接）
+│   └── references/             # 通用惯例兜底清单（预留，尚未填）
 ├── workflow/                   # 编排入口：audit_all / plan / apply（+ _common 共用工具）
-├── references/                 # 跨 skill 的 SOP（★ 尚未成文，待补）
+├── references/                 # 跨 skill 的三份 SOP（见下）+ README 索引
 ├── assets/                     # config.example.yaml + skills-index.yaml（路由唯一真源）+ rules/（术语表等，尚未填）
 ├── tests/golden/               # 金标准样本 + 跑分
 └── docs/                       # 设计方案 + 路线图
@@ -295,10 +296,15 @@ paper-detail-doctor/
 | `template-extract` | ✅ 已并入；`extract_conventions.py` 已在真实论文上验证（8 项真值命中 7 项） |
 | `format-audit` / `cite-doctor` / `text-style` / `structure-length` | ✅ 已实现，各带注入式自检 |
 | `proposal-consistency` | ✅ 已实现；金标准跑分 **召回 4/4、误报 0/4、定位 4/4** |
-| 验收 | ✅ **7 套测试 207 项全通过**（`python tests/run_all.py`） |
-| `quote-verify` | ⬜ 未实现（可选模块，需自备语料库） |
-| `references/` 的 SOP | ⬜ 未成文 |
+| 验收 | ✅ **8 套测试 227 项全通过**（`python tests/run_all.py`） |
+| `quote-verify` | ⬜ 未实现（可选模块，需自备语料库；→ 见下"命中未实现 skill 怎么办"） |
+| `references/` 的 SOP | ✅ **三份已成文**：`SOP-引注上标与跳转.md` / `SOP-模板标准.md` / `SOP-开题一致性核对.md`（+ `references/README.md` 索引） |
 | 安装到 `~/.workbuddy/skills/` | ✅ 只注册包入口（子 skill 留在包内，不单独注册） |
+
+**命中未实现的 skill 怎么办**：索引里若保留了尚未实现的条目（当前是 `quote-verify`），
+路由到它时必须**明说"该模块尚未实现"**并给出替代方案（引语逐字校验需自备语料库；
+做文献研究的人用不上），**绝不假装执行、绝不吐空报告当"没问题"**。
+索引里这类条目的 `status` 一律标 `planned`。
 
 **一条已验证的纪律（源自踩坑）**：审计规则里任何异常都必须升格为 `audit-internal-error` 的 error 级 Issue，
 **不许只写进 notes**。否则"检查器坏了"会伪装成"全部合格"——曾经就有一个规则因为
