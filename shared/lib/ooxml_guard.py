@@ -33,6 +33,7 @@ shared/lib/ooxml_guard.py —— 三道闸门：快照 / 幂等 / 回滚
 import hashlib
 import json
 import os
+import re
 import shutil
 import time
 
@@ -85,8 +86,14 @@ class SnapshotManager:
     def create(self, tag: str = 'pre-apply') -> str:
         os.makedirs(self.root, exist_ok=True)
         stamp = time.strftime('%Y%m%d-%H%M%S')
-        name = '%s.%s.%s.docx' % (os.path.splitext(os.path.basename(self.docx))[0], tag, stamp)
-        dst = os.path.join(self.root, name)
+        base = '%s.%s.%s' % (os.path.splitext(os.path.basename(self.docx))[0], tag, stamp)
+        dst = os.path.join(self.root, base + '.docx')
+        # ★ 同一秒内连做两次备份（比如连着跑两遍 apply）会重名，
+        #   不加重号就直接被后一次覆盖掉 —— 第一次的回滚点就没了。
+        n = 2
+        while os.path.exists(dst):
+            dst = os.path.join(self.root, '%s-%d.docx' % (base, n))
+            n += 1
         shutil.copy2(self.docx, dst)
         self._prune()
         return dst
@@ -99,12 +106,25 @@ class SnapshotManager:
             except OSError:
                 pass
 
+    @staticmethod
+    def _sort_key(path):
+        """按文件名里的时间戳排序，**不要**用 mtime。
+
+        同一秒内产生的几个快照 mtime 完全相同，靠 mtime 排序时谁排第一是不确定的
+        （取决于 os.listdir 的顺序），"回滚到最近一份"就会随机回到某一份 ——
+        自检里正是因此回滚到了更早的那份快照。文件名带秒级时间戳 + 重号，可完全排序。
+        """
+        m = re.search(r'\.(\d{8}-\d{6})(?:-(\d+))?\.docx$', os.path.basename(path))
+        if m:
+            return (m.group(1), int(m.group(2) or 1))
+        return ('00000000-000000', 0)          # 认不出名字的老文件排到最后
+
     def list(self):
         if not os.path.isdir(self.root):
             return []
         fs = [os.path.join(self.root, f) for f in os.listdir(self.root)
               if f.lower().endswith('.docx') and not f.startswith('.')]
-        return sorted(fs, key=os.path.getmtime, reverse=True)
+        return sorted(fs, key=self._sort_key, reverse=True)
 
     def restore(self, snapshot: str):
         """回滚：把快照覆盖回目标文档。
@@ -234,11 +254,19 @@ def apply_plan(docx_path: str, plan: dict, dry_run: bool = False,
     if not items:
         return journal
 
-    # ★ 结构性动作按段号倒序（无段号提示的排在最后）
+    # ★ 执行分三段，顺序不能乱（写死，别改成"按 plan 里的顺序"）：
+    #   ① ref.bookmark  —— 先把书签立起来，后面的引注链接才有目标可指
+    #   ② 原地动作      —— 改字号 / 加超链接 / 挪位置，互不干扰
+    #   ③ 结构性动作    —— 删段/并段/插段，按段号**倒序**，避免段号位移影响前面的动作
     def _order(it):
+        act = it.get('action')
         loc = (it.get('params') or {}).get('locator') or {}
         hint = loc.get('para_index') or 0
-        return 1 if it.get('action') in STRUCTURAL_ACTIONS else 0, -hint
+        if act == 'ref.bookmark':
+            return 0, -hint
+        if act in STRUCTURAL_ACTIONS:
+            return 2, -hint
+        return 1, -hint
 
     items = sorted(items, key=_order)
 

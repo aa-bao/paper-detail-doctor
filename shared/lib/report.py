@@ -111,10 +111,19 @@ def render_markdown(issues, suppressed, summary, meta=None):
         lines.append('| 标准来源 | %s |' % meta['standard_source_note'])
     lines.append('')
 
-    if not issues:
-        lines.append('## 结果：全部通过')
+    if meta.get('notes'):
+        lines.append('## 审计说明（先读这段，再看结论）')
         lines.append('')
-        lines.append('本次审计未发现问题。')
+        for n in meta['notes']:
+            lines.append('- %s' % n)
+        lines.append('')
+
+    if not issues:
+        lines.append('## 结果：未发现问题')
+        lines.append('')
+        lines.append('本批检查项范围内未发现不合规之处。注意：这只说明"没查出问题"，'
+                     '不等于"一定没问题"——判不出来的项（如需渲染结果才能确认的）'
+                     '在上面的说明里列着。')
     else:
         by_sev = {}
         for it in issues:

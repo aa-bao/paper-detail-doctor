@@ -57,7 +57,7 @@ W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 
 # 与 docx_scan 保持同一套遍历语义（hyperlink / 域结果都要算进可见文本）
-from shared.lib.docx_scan import norm  # noqa: E402
+from shared.lib.docx_scan import CLAUSE_PUNCT, SENTENCE_END, norm  # noqa: E402
 
 
 # ================================================================ 异常
@@ -374,6 +374,27 @@ def set_run_size(r_el, pt: float):
         el.set(W + 'val', str(half))
 
 
+def clear_run_size(r_el) -> bool:
+    """抹掉 run 的显式字号，改回"随样式继承"。
+
+    ★ 上标引注**必须**走这一步，不许 set_run_size(6.5) ★
+    原因：Word/WPS 对 `w:vertAlign="superscript"` 会自动按比例缩小（约 65%）。
+    如果你再显式写一个 6.5pt，渲染出来是 6.5 × 65% ≈ 4.2pt，肉眼几乎看不见 ——
+    实测这份初稿的 46 处引注**全部没有显式 w:sz**，缩放完全交给渲染器。
+    所以"引注字号偏小"的正确修法是**删掉显式字号**，不是改成别的值。
+    """
+    rPr = r_el.find(W + 'rPr')
+    if rPr is None:
+        return False
+    hit = False
+    for tag in ('sz', 'szCs'):
+        el = rPr.find(W + tag)
+        if el is not None:
+            rPr.remove(el)
+            hit = True
+    return hit
+
+
 def set_run_font(r_el, ascii_font=None, eastasia=None, size_pt=None, bold=None):
     rPr = _get_or_add(r_el, W + 'rPr', first=True)
     if ascii_font or eastasia:
@@ -576,30 +597,95 @@ def split_run(r_el, at: int):
     return tail
 
 
-def move_run_before_punct(r_el, punct: str) -> bool:
-    """把引注 run 挪到它前面那个标点的**前面**（规范写法：句号前）。
+def citation_block(r_el):
+    """返回包含该 run 的"引注块"—— 移动/删除**必须**以块为单位。
+
+    三种形态（少认一种就会把文档改坏）：
+      Word 内部链接  → `[w:hyperlink]`（run 包在里面）
+      WPS 域代码     → `[begin, instrText, separate, [n], end]` 五个 run
+      纯文字         → `[run]`
+    只挪承载 `[n]` 那一个 run，会把域拆散（WPS 打开报错）或把空链接留在原地。
+    """
+    hl = hyperlink_of_run(r_el)
+    if hl is not None:
+        return [hl]
+    begin, _, _ = field_code_of_run(r_el)
+    if begin is None:
+        return [r_el]
+    block, depth, cur = [], 0, begin
+    while cur is not None:
+        block.append(cur)
+        fc = cur.find(W + 'fldChar') if cur.tag == W + 'r' else None
+        if fc is not None:
+            t = fc.get(W + 'fldCharType')
+            if t == 'begin':
+                depth += 1
+            elif t == 'end':
+                depth -= 1
+                if depth == 0:
+                    break
+        cur = cur.getnext()
+    return block
+
+
+def _prev_text_run(first_el):
+    """从 first_el 往回找最近的、**有可见文字**的 w:r 兄弟。
+
+    ★ 不能只看 getprevious()：WPS 域形态下，引注 run 的上一个兄弟是
+      `fldChar separate`（无文字），只看一格会拿到空串然后直接放弃，
+      结果"标点在后"的缺陷修不动 —— 而且**静默返回 False**，不报错。
+    """
+    prev = first_el.getprevious()
+    while prev is not None:
+        if prev.tag == W + 'r' and _text_of(prev):
+            return prev
+        prev = prev.getprevious()
+    return None
+
+
+def move_run_before_punct(r_el, punct: Optional[str] = None) -> bool:
+    """把引注挪到它前面那个标点的**前面**（规范写法：句号前）。
 
     例：`……分配问题。[1]` → `……分配问题[1]。`
-    已合规返回 False。
+
+    已合规返回 False。整块移动，域/链接一并带走。
     """
-    prev = r_el.getprevious()
-    if prev is None or prev.tag != W + 'r':
+    block = citation_block(r_el)
+    first = block[0]
+    par = first
+    while par is not None and par.tag != W + 'p':
+        par = par.getparent()
+    if par is None:
         return False
-    ptext = _text_of(prev)
-    if not ptext:
+
+    prev = _prev_text_run(first)
+    if prev is None:
         return False
-    if ptext.endswith(punct):
-        if ptext == punct:
-            # 前一个 run 就是标点本身 → 直接换位
-            par = r_el.getparent()
-            par.remove(r_el)
-            prev.addprevious(r_el)
-            return True
-        # 标点粘在文字尾巴上 → 切开
-        tail = split_run(prev, len(ptext) - 1)
-        tail.addprevious(r_el)
-        return True
-    return False
+    t = _text_of(prev)
+
+    # 判定"标点在引注之前"：紧邻引注左侧那个可见 run 以句读符结尾。
+    # 若 plan 里记的标点与文档实际不符（audit 之后你又手动编辑过），
+    # 只要实际末尾确实是句读符就按实际的来 —— 修对，比"因为标签不符而放弃"好。
+    if punct and t.endswith(punct):
+        cut = len(t) - len(punct)
+    elif t[-1] in (SENTENCE_END + CLAUSE_PUNCT):
+        cut = len(t) - 1
+    else:
+        return False
+
+    if cut > 0:
+        # 标点粘在文字尾巴上 → 切开，让标点独占一个 run
+        holder = split_run(prev, cut)
+    else:
+        holder = prev                      # 整个 run 就是标点
+
+    for el in block:
+        if el.getparent() is not None:
+            el.getparent().remove(el)
+    pt = holder
+    for el in block:
+        pt.addprevious(el)                 # 依次插到标点之前，保持块内顺序
+    return True
 
 
 # ---------------------------------------------------------------- 段落级
@@ -770,6 +856,11 @@ def _a_cite_move_before_punct(doc: Doc, params: dict) -> bool:
     return move_run_before_punct(r, params.get('punct', '。'))
 
 
+def _a_run_clear_size(doc: Doc, params: dict) -> bool:
+    _, r, _, _, _, _ = doc.locate_run(params['locator'])
+    return clear_run_size(r)
+
+
 def _a_run_font(doc: Doc, params: dict) -> bool:
     _, r, _, _, _, _ = doc.locate_run(params['locator'])
     set_run_font(r, params.get('ascii'), params.get('eastasia'),
@@ -819,6 +910,7 @@ ACTIONS = {
     'cite.link': _a_cite_link,
     'cite.rewrite': _a_cite_rewrite,
     'cite.move_before_punct': _a_cite_move_before_punct,
+    'run.clear_size': _a_run_clear_size,
     'run.font': _a_run_font,
     'para.style': _a_para_style,
     'para.border': _a_para_border,

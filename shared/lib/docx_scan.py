@@ -56,6 +56,10 @@ TOC_HEADINGS = {'目录', '目次', 'contents'}
 # 句末标点 / 句读符 —— 引注位置的判定基准
 SENTENCE_END = '。！？!?'
 CLAUSE_PUNCT = '；，、：,;:）)】」”'
+# 引注**紧跟其后**即视为位置违规的分隔符。
+# 刻意不含 `）】」”` 这类收尾符：`……"墙里墙外"[1]` 里引注跟在引号后完全正常，
+# 把它们算进来会造成一片误报。只收真正的分句/分列符。
+PUNCT_BEFORE = '。！？；，、：!?,;:'
 
 # 一个引注号：[1] / ［1］ / (1) / （1） / 1 / [1,2] / [1-3]
 CITE_RE = re.compile(r'^\s*([\[［【（(])?\s*(\d+(?:\s*[-–—~,，、]\s*\d+)*)\s*([\]］】）)])?\s*$')
@@ -270,6 +274,14 @@ class Scanner:
     def para_text(self, para_index: int) -> str:
         return ''.join(r.text for r in self.runs(para_index))
 
+    def para_el(self, para_index: int):
+        """取段落的 XML 元素。
+
+        子 skill 造 Locator 时需要它。刻意不暴露 Paragraph 对象 ——
+        审计阶段只该"读 + 造定位"，不该拿到能改写的句柄。
+        """
+        return self._paras[para_index - 1]._element
+
     # -------------------------------------------------- 引注
 
     @staticmethod
@@ -292,17 +304,24 @@ class Scanner:
         """判定引注相对标点的位置。返回 (position, prev_char, next_char)。
 
         判据（写死，不要凭感觉）：
-          后一字符 ∈ 句读符（。！？；，、…） → 引注落在标点**之前** → before-punct（规范写法）
-          前一字符 ∈ 句末标点，且后一字符不是句读符 → after-punct
-          两侧都是正文 → mid-sentence（如「杨善华[1]指出」）
+          后一字符 ∈ 句读符（。！？；，、） → 引注落在标点**之前** → before-punct（规范写法）
+          前一字符 ∈ 分隔符（。！？；，、：） → 引注**紧跟标点之后** → after-punct
+          两侧都是正文 → mid-sentence（如「杨善华[1]指出」「路径[27]与…」）
+
+        注意 after-punct 的判定要用 PUNCT_BEFORE 而不是 SENTENCE_END：
+        `……统一；[4]吴帆认为……` 里的引注跟在分号后，同属位置违规（应为
+        `……统一[4]；吴帆认为……`）。只认句末标点会把这些放过去。
         """
         nxt = ptext[end:end + 1]
         prev = ptext[max(0, start - 1):start]
         if nxt == '':
+            # 段末引注：前面若是分隔符，本质就是"标点之后"，不能算另一种情况
+            if prev in PUNCT_BEFORE:
+                return 'after-punct', prev, nxt
             return 'end-of-paragraph', prev, nxt
         if nxt in SENTENCE_END or nxt in CLAUSE_PUNCT:
             return 'before-punct', prev, nxt
-        if prev in SENTENCE_END:
+        if prev in PUNCT_BEFORE:
             return 'after-punct', prev, nxt
         return 'mid-sentence', prev, nxt
 
