@@ -2,9 +2,9 @@
 name: paper-detail-doctor
 description: "论文格式与细节优化的 skill 包（索引 + 工作流编排）。面向已经有一份 Word 论文的人，诊断并修好格式、版式、引注、文献、文字体例、结构篇幅、开题一致性等问题，且不破坏人工修改过的内容。内含 7 个专职子 skill：template-extract（模板/规范→Word 模板与格式 spec）、format-audit（L1 格式与版式）、cite-doctor（L2 引注与文献）、text-style（L3 文字体例）、structure-length（L4 结构与篇幅）、proposal-consistency（开题—正文一致性核对）、quote-verify（引语逐字校验，质性研究可选）。Triggers: 论文格式检查, 论文排版, 引注上标, 文献引用跳转, 参考文献顺序, 论文细节, 格式规范, 论文模板, 开题报告和正文一致吗, 论文体检, 帮我改论文格式, 目录页码, 页眉横线, 字数超出, 摘要超页, 破折号太多, 标题太虚, paper format check, thesis formatting, citation check, thesis template."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   last_updated: "2026-09-17"
-  status: partial
+  status: usable
   data_access_level: raw
   task_type: open-ended
   related_skills:
@@ -53,12 +53,12 @@ audit（只读，绝不写盘） → plan（可编辑 yaml，你勾选） → ap
 | 子 skill | 职责 | 覆盖检查项 | 是否写盘 | 状态 |
 |---|---|---|---|---|
 | **`template-extract`** | 从模板/规范/范文提取真实排版与**体例规则**，产出 Word 模板 + Format Spec | 标准来源（所有检查的"期望值"） | 写 | ✅ 已实现 |
-| **`format-audit`** | 段落样式、页面设置、页码方案、页眉文字与横线、字体字号行距、目录域 | L1 · 1–6 | 写 | 待实现 |
-| **`cite-doctor`** | 引注位置与形态、Ctrl+点击跳转、编号制、正反覆盖、GB/T 7714 著录、去重 | L2 · 7–13 | 写 | 待实现 |
-| **`text-style`** | 引号体例、标点异常、破折号密度、标题体例、过程痕迹（+3 项可选） | L3 · 14–21 | 写 | 待实现 |
-| **`structure-length`** | 章节编号连续性、图表覆盖/编号/题注、摘要版式、双口径字数与配额 | L4 · 22–25 | 写 | 待实现 |
-| **`proposal-consistency`** | 开题 ↔ 正文一致性核对（锚点法 + 三层判定 + 证据卡 + 金标准跑分） | L4 · 26 | **只读** | 待实现 |
-| **`quote-verify`** | 引语逐字校验（不得拼接、跨句须用「……」），需自备语料库 | 可选（质性研究） | **只读** | 待实现 |
+| **`format-audit`** | 段落样式、页面设置、页码方案、页眉文字与横线、字体字号行距、目录域 | L1 · 1–6（6 条规则） | 写 | ✅ 已实现 |
+| **`cite-doctor`** | 引注位置与形态、Ctrl+点击跳转、编号制、正反覆盖、GB/T 7714 著录、去重 | L2 · 7–13（7 条规则） | 写 | ✅ 已实现 |
+| **`text-style`** | 引号体例、标点异常、破折号密度、标题体例、过程痕迹（+3 项可选） | L3 · 14–21（5 + 3 条规则） | 写 | ✅ 已实现 |
+| **`structure-length`** | 章节编号连续性、图表覆盖/编号/题注、摘要版式、双口径字数与配额 | L4 · 22–25（4 条规则） | 写 | ✅ 已实现 |
+| **`proposal-consistency`** | 开题 ↔ 正文一致性核对（锚点法 + 三层判定 + 证据卡 + 金标准跑分） | L4 · 26（7 条规则） | **只读** | ✅ 已实现 |
+| **`quote-verify`** | 引语逐字校验（不得拼接、跨句须用「……」），需自备语料库 | 可选（质性研究） | **只读** | ⬜ 未实现（可选模块） |
 
 ---
 
@@ -163,18 +163,34 @@ apply（写盘）              ← ④ 先快照，逐条手术，幂等；输�
 - `audit` 段**纯只读**，可以在任何时刻安全重跑。
 - `apply` 段**按 plan 执行**，你没有勾的项绝不会被改。
 
-**分段执行**（推荐，安全）：
+**分段执行**（推荐，安全）。下面是与实现一致的命令（`<文档旁>/.thesis-doctor/` 是产物落点）：
 
 ```
-# ① 标准
-python workflow/extract_standard.py --template 学校模板.pdf --out spec/template-spec.json
-# ② 只读诊断
-python workflow/audit_all.py --docx 我的论文.docx --spec spec/template-spec.json
-# ③ 生成可编辑计划 → 打开 plan.yaml 勾选
-python workflow/plan.py --audit _output/audit.json --out plan.yaml
-# ④ 执行（先快照）
-python workflow/apply.py --docx 我的论文.docx --plan plan.yaml
+# ① 标准（可选）。从"已排好版的范文 docx"反推体例规则，产出/并入 spec
+python skills/template-extract/scripts/extract_conventions.py -d 范文.docx -o spec.json
+#   也可以并进已有的 spec：  ... -d 范文.docx --merge-into spec/template-spec.json
+
+# ② 只读诊断（五个审计型子 skill 汇总成一份报告）
+python workflow/audit_all.py -d 我的论文.docx -s spec.json
+#   要跑开题↔正文一致性核对，再给一份开题报告（不给就跳过并写进 notes）：
+python workflow/audit_all.py -d 我的论文.docx -p 开题报告.docx
+#   只跑某一个：             ... --only cite-doctor
+
+# ③ 生成可编辑计划（产物写在文档旁的 .thesis-doctor/plan.yaml）→ 打开勾选
+python workflow/plan.py -d 我的论文.docx
+#   想让 warn/info 也默认勾上：  ... --all
+
+# ④ 先预览（不写盘），确认后再执行
+python workflow/apply.py -p "<文档旁>/.thesis-doctor/plan.yaml" --dry-run
+python workflow/apply.py -p "<文档旁>/.thesis-doctor/plan.yaml" --yes
+
+# 出问题就回滚（写入前会自动快照，保留最近 12 份）
+python workflow/apply.py -d 我的论文.docx --list-snapshots
+python workflow/apply.py -d 我的论文.docx --rollback
 ```
+
+**产物落点约定**：审计报告固定在文档旁的 `.thesis-doctor/audit/`，计划与快照在同一 `.thesis-doctor/` 下。
+这个目录是**项目数据**（含快照与幂等账本），不要当缓存删掉 —— 删了就没法回滚。
 
 ---
 
@@ -231,12 +247,11 @@ paper-detail-doctor/
 │   ├── proposal-consistency/
 │   └── quote-verify/
 ├── shared/
-│   ├── lib/                    # docx_ops / docx_scan / ooxml_guard / report
-│   ├── contracts/              # Issue / PlanItem / Report 的 schema
-│   └── references/             # 通用惯例兜底清单、GB/T 7714 要点
-├── workflow/                   # 编排入口：audit_all / plan / apply / extract_standard
-├── references/                 # 跨 skill 的 SOP
-├── assets/                     # config.example.yaml + skills-index.yaml（路由唯一真源）+ rules/
+│   ├── lib/                    # docx_scan（读）/ docx_ops（写·12 个具名动作）/ ooxml_guard（三道闸门）/ report / standards（标准来源三级优先）
+│   └── contracts/              # Issue / PlanItem 的 JSON Schema（子 skill 之间只靠它交接）
+├── workflow/                   # 编排入口：audit_all / plan / apply（+ _common 共用工具）
+├── references/                 # 跨 skill 的 SOP（★ 尚未成文，待补）
+├── assets/                     # config.example.yaml + skills-index.yaml（路由唯一真源）+ rules/（术语表等，尚未填）
 ├── tests/golden/               # 金标准样本 + 跑分
 └── docs/                       # 设计方案 + 路线图
 ```
@@ -272,12 +287,21 @@ paper-detail-doctor/
 
 ## 8. 状态
 
-**当前：骨架 + 首个可跑子 skill（v0.2.0）。**
+**当前：6/7 个子 skill 已实现并通过验收（v0.3.0）。**
 
 | 项 | 状态 |
 |---|---|
-| 包结构 / 索引 / 路由 / 共享契约 | ✅ 已定且可读 |
-| `template-extract` | ✅ 已并入，并新增 `extract_conventions.py`（体例规则提取，已在真实论文上验证通过） |
-| 其余 6 个子 skill | ⬜ 待实现（目录已建，**故意不放空 SKILL.md**，避免宿主注册一堆什么都不做的 skill） |
+| 包结构 / 索引 / 路由 / 共享契约 | ✅ 已定 |
+| `template-extract` | ✅ 已并入；`extract_conventions.py` 已在真实论文上验证（8 项真值命中 7 项） |
+| `format-audit` / `cite-doctor` / `text-style` / `structure-length` | ✅ 已实现，各带注入式自检 |
+| `proposal-consistency` | ✅ 已实现；金标准跑分 **召回 4/4、误报 0/4、定位 4/4** |
+| 验收 | ✅ **7 套测试 207 项全通过**（`python tests/run_all.py`） |
+| `quote-verify` | ⬜ 未实现（可选模块，需自备语料库） |
+| `references/` 的 SOP | ⬜ 未成文 |
+| 安装到 `~/.workbuddy/skills/` | ✅ 只注册包入口（子 skill 留在包内，不单独注册） |
+
+**一条已验证的纪律（源自踩坑）**：审计规则里任何异常都必须升格为 `audit-internal-error` 的 error 级 Issue，
+**不许只写进 notes**。否则"检查器坏了"会伪装成"全部合格"——曾经就有一个规则因为
+参数名撞名抛异常被吞掉，报出"0 条问题"而看起来一切正常。
 
 进度见 `docs/路线图.md`；设计依据见 `docs/设计方案-v2.md`。

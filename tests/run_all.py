@@ -11,6 +11,8 @@ tests/run_all.py —— 跑齐全部验收，末尾给一张总表
     selftest_structure_length L4 规则（注入断号/重复题注/摘要超限 + 三口径字数交叉验证）
     selftest_proposal_consistency  开题↔正文一致性：金标准跑分（召回/误报/定位三指标，
                              真实双文档）+ 改开题内容看结论是否跟着变（反硬编码验证）
+    selftest_routing          路由可区分性：包根 §2 的 12 条示例 prompt 是否各归其位，
+                             not_for 能否挡误命中，out_of_scope 能否挡住"本包不干的活"
     e2e_cli                   命令行**串起来**能不能用（yaml 往返、路径约定、门禁、回滚）
 
 五个 audit 型子 skill 的自检都遵循同一个范式：**在干净稿上人为注入缺陷 →
@@ -38,6 +40,7 @@ SUITES = [
     ('text-style 规则（注入式）', 'selftest_text_style.py'),
     ('structure-length 规则（注入式）', 'selftest_structure_length.py'),
     ('proposal-consistency 金标准跑分', 'selftest_proposal_consistency.py'),
+    ('路由可区分性', 'selftest_routing.py'),
     ('命令行全链路', 'e2e_cli.py'),
 ]
 
